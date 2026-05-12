@@ -96,7 +96,7 @@ export interface ScheduleRecord {
   crew: string;
   crewKey: string;
   crewCategory: string;
-  reliability: string;
+  reliability: 'high' | 'medium' | 'low';
   rowNumber: number;
   columnNumber: number;
   rawAssignment: string;
