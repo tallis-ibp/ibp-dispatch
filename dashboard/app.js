@@ -1,5 +1,34 @@
 /* IBP Dispatch Dashboard — app.js */
 
+async function checkAuth() {
+  try {
+    const res = await fetch('/api/briefs/' + new Date().toISOString().slice(0, 10));
+    if (res.status === 401) {
+      document.getElementById('login-screen').style.display = 'flex';
+      const appEl = document.getElementById('app');
+      if (appEl) appEl.style.display = 'none';
+      document.getElementById('login-telegram-btn').addEventListener('click', async () => {
+        const r = await fetch('/api/auth/init', { method: 'POST' });
+        const data = await r.json();
+        window.open(data.telegramUrl, '_blank');
+      });
+      return false;
+    }
+    return true;
+  } catch {
+    return true;
+  }
+}
+
+function applyRoleControls() {
+  const isViewer = new URLSearchParams(window.location.search).has('token');
+  if (isViewer) {
+    document.querySelectorAll('.scheduler-only').forEach((el) => {
+      el.style.display = 'none';
+    });
+  }
+}
+
 const todayISO = () => new Date().toISOString().slice(0, 10);
 let currentBrief = null;
 let saveTimer = null;
@@ -7,6 +36,10 @@ let takenTrailers = new Set(); // loaded from Fleet Events
 
 // ── Boot ─────────────────────────────────────────────────────────────────
 document.addEventListener("DOMContentLoaded", async () => {
+  const authed = await checkAuth();
+  if (!authed) return;
+  applyRoleControls();
+
   document.getElementById("date-label").textContent = formatDate(todayISO());
 
   await loadBrief();

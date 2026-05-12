@@ -7,6 +7,24 @@
   <link rel="stylesheet" href="/dashboard/style.css">
 </head>
 <body>
+  <!-- Login screen — shown when no valid session -->
+  <div id="login-screen" style="display:none;">
+    <div class="login-container">
+      <div class="login-brand">
+        <div class="login-logo">IBP</div>
+        <div class="login-subtitle">CREW DISPATCH</div>
+      </div>
+      <div class="login-card">
+        <div class="login-icon">📱</div>
+        <h2>Login via Telegram</h2>
+        <p>Tap the button below. The bot will send you a secure login link.</p>
+        <button class="login-btn" id="login-telegram-btn">Open Telegram Bot →</button>
+        <p class="login-note">Link expires in 10 minutes</p>
+      </div>
+      <div class="login-footer">IBP Group · Florida Operations</div>
+    </div>
+  </div>
+
   <header>
     <div class="header-left">
       <h1>IBP Dispatch</h1>
@@ -170,6 +188,7 @@
     </div>
   </div>
 
+  <script src="/dashboard/viewer.js"></script>
   <script src="/dashboard/app.js"></script>
   <script src="/dashboard/proposals.js"></script>
   <script src="/dashboard/logistics.js"></script>
