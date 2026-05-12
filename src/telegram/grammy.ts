@@ -21,6 +21,11 @@ export async function startBot(): Promise<void> {
     if (payload?.startsWith('login_')) {
       const nonce = payload.slice(6);
       const schedulerChatId = process.env.TELEGRAM_SCHEDULER_CHAT_ID;
+      if (!schedulerChatId) {
+        console.error('[telegram] TELEGRAM_SCHEDULER_CHAT_ID not configured');
+        await ctx.reply('Login is not configured. Contact the administrator.');
+        return;
+      }
       if (String(ctx.chat.id) !== schedulerChatId) {
         await ctx.reply('This login link is not for you.');
         return;

@@ -18,15 +18,12 @@ export function storeNonce(nonce: string): void {
 
 export function validateNonce(nonce: string): boolean {
   const db = getDb();
-  const row = db.prepare(`
-    SELECT nonce FROM login_nonces
+  const result = db.prepare(`
+    UPDATE login_nonces SET used = 1
     WHERE nonce = ? AND used = 0
       AND datetime(created_at) > datetime('now', '-10 minutes')
-  `).get(nonce) as { nonce: string } | undefined;
-
-  if (!row) return false;
-  db.prepare('UPDATE login_nonces SET used = 1 WHERE nonce = ?').run(nonce);
-  return true;
+  `).run(nonce);
+  return result.changes === 1;
 }
 
 export async function handleInitLogin(req: IncomingMessage, res: ServerResponse): Promise<void> {
@@ -95,6 +92,11 @@ export function handleCreateShareLink(
 
   const jwt = signToken({ role: 'viewer', sessionToken }, body.expiresInDays ? `${body.expiresInDays}d` : undefined);
   const publicUrl = process.env.PUBLIC_URL;
+  if (!publicUrl) {
+    res.writeHead(500, { 'Content-Type': 'application/json' });
+    res.end(JSON.stringify({ error: 'PUBLIC_URL not configured' }));
+    return;
+  }
   const shareUrl = `${publicUrl}?token=${jwt}`;
 
   res.writeHead(200, { 'Content-Type': 'application/json' });
