@@ -5,15 +5,32 @@
   "type": "module",
   "description": "IBP crew dispatch system — daily briefs, Telegram work orders, photo AI logging to Monday.com",
   "scripts": {
-    "fetch:schedule":  "node --env-file=.env src/fetchSchedule.mjs",
-    "fetch:monday":    "node --env-file=.env src/scripts/refreshMonday.mjs",
-    "analyze":         "node --env-file=.env src/analyzeSchedule.mjs",
-    "refresh":         "npm run fetch:monday && npm run fetch:schedule && npm run brief",
-    "brief":           "node --env-file=.env src/generateBriefs.mjs",
-    "server":          "node --env-file=.env src/server/index.mjs",
-    "setup:webhook":   "node --env-file=.env src/scripts/setupWebhook.mjs"
+    "dev": "tsx src/server/index.ts",
+    "build": "tsc",
+    "start": "node dist/server/index.js",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "fetch:schedule": "tsx src/core/fetchSchedule.ts",
+    "analyze": "tsx src/core/analyzeSchedule.ts",
+    "brief": "tsx src/core/generateBriefs.ts",
+    "refresh": "tsx src/monday/refreshMonday.ts",
+    "setup:webhook": "tsx src/scripts/setupWebhook.ts"
   },
   "engines": {
     "node": ">=18"
+  },
+  "devDependencies": {
+    "@types/better-sqlite3": "^7.6.13",
+    "@types/jsonwebtoken": "^9.0.10",
+    "@types/node": "^25.7.0",
+    "tsx": "^4.21.0",
+    "typescript": "^6.0.3",
+    "vitest": "^4.1.6"
+  },
+  "dependencies": {
+    "better-sqlite3": "^12.10.0",
+    "grammy": "^1.42.0",
+    "jsonwebtoken": "^9.0.3",
+    "zod": "^4.4.3"
   }
 }
