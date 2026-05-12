@@ -30,6 +30,12 @@ export async function handleGenerateBrief(req: IncomingMessage, res: ServerRespo
 
 export async function handleApproveBrief(req: IncomingMessage, res: ServerResponse, date: string): Promise<void> {
   const db = getDb();
+  const brief = db.prepare('SELECT date FROM briefs WHERE date = ?').get(date);
+  if (!brief) {
+    res.writeHead(404, { 'Content-Type': 'application/json' });
+    res.end(JSON.stringify({ error: 'Brief not found' }));
+    return;
+  }
   db.prepare('UPDATE briefs SET approved = 1, approved_at = ?, approved_by = ? WHERE date = ?').run(
     new Date().toISOString(), 'dashboard', date
   );

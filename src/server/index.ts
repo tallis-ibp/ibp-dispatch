@@ -68,98 +68,114 @@ function requireAuth(req: IncomingMessage, res: ServerResponse): boolean {
 }
 
 const server = createServer(async (req: IncomingMessage, res: ServerResponse) => {
-  const url = new URL(req.url ?? '/', `http://localhost:${PORT}`);
-  const path = url.pathname;
-  const ip = getIp(req);
+  try {
+    const url = new URL(req.url ?? '/', `http://localhost:${PORT}`);
+    const path = url.pathname;
+    const ip = getIp(req);
 
-  res.setHeader('X-Content-Type-Options', 'nosniff');
-  res.setHeader('X-Frame-Options', 'DENY');
+    res.setHeader('X-Content-Type-Options', 'nosniff');
+    res.setHeader('X-Frame-Options', 'DENY');
 
-  // Rate limiting
-  if (path === '/api/auth/init' || path === '/api/auth/exchange') {
-    if (!loginLimiter(ip)) { res.writeHead(429); res.end(JSON.stringify({ error: 'Too many requests' })); return; }
-  } else if (!generalLimiter(ip)) {
-    res.writeHead(429); res.end(JSON.stringify({ error: 'Too many requests' })); return;
+    // Rate limiting
+    if (path === '/api/auth/init' || path === '/api/auth/exchange') {
+      if (!loginLimiter(ip)) { res.writeHead(429); res.end(JSON.stringify({ error: 'Too many requests' })); return; }
+    } else if (!generalLimiter(ip)) {
+      res.writeHead(429); res.end(JSON.stringify({ error: 'Too many requests' })); return;
+    }
+
+    // Telegram webhook
+    if (path === '/webhook/telegram' && req.method === 'POST') {
+      const secret = req.headers['x-telegram-bot-api-secret-token'];
+      if (WEBHOOK_SECRET && secret !== WEBHOOK_SECRET) { res.writeHead(403); res.end(); return; }
+      const body = await readBody(req);
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      await getBot().handleUpdate(body as any);
+      res.writeHead(200); res.end();
+      return;
+    }
+
+    // Auth routes (no JWT required)
+    if (path === '/api/auth/init' && req.method === 'POST') { await handleInitLogin(req, res); return; }
+    if (path === '/api/auth/exchange' && req.method === 'GET') {
+      handleNonceExchange(req, res, url.searchParams.get('nonce') ?? ''); return;
+    }
+
+    // Protected API routes
+    if (path.startsWith('/api/')) {
+      if (!requireAuth(req, res)) return;
+
+      if (path === '/api/share' && req.method === 'GET') { handleGetShareLinks(req, res); return; }
+      if (path === '/api/share' && req.method === 'POST') {
+        const body = await readBody(req) as { label: string; expiresInDays: number | null };
+        handleCreateShareLink(req, res, body); return;
+      }
+      if (path.startsWith('/api/share/') && req.method === 'DELETE') {
+        handleRevokeShareLink(req, res, path.slice('/api/share/'.length)); return;
+      }
+      if (path.startsWith('/api/briefs/') && !path.endsWith('/approve') && req.method === 'GET') {
+        handleGetBrief(req, res, path.slice('/api/briefs/'.length)); return;
+      }
+      if (path.startsWith('/api/briefs/') && path.endsWith('/approve') && req.method === 'POST') {
+        const date = path.slice('/api/briefs/'.length).replace('/approve', '');
+        await handleApproveBrief(req, res, date); return;
+      }
+      if (path === '/api/generate' && req.method === 'POST') {
+        const body = await readBody(req) as { date: string };
+        await handleGenerateBrief(req, res, body.date); return;
+      }
+      if (path === '/api/proposals' && req.method === 'GET') {
+        await handleGetProposals(req, res, url.searchParams.get('date') ?? ''); return;
+      }
+      if (path === '/api/proposals' && req.method === 'POST') {
+        const body = await readBody(req) as { date: string };
+        await handleGenerateProposals(req, res, body.date); return;
+      }
+      if (path.startsWith('/api/proposals/') && req.method === 'PATCH') {
+        const id = path.slice('/api/proposals/'.length);
+        const body = await readBody(req) as { status: unknown };
+        handleUpdateProposal(req, res, id, body.status); return;
+      }
+
+      res.writeHead(404); res.end(JSON.stringify({ error: 'Not found' })); return;
+    }
+
+    // Static dashboard files
+    if (path === '/' || path === '/index.html') { serveFile(res, join(DASHBOARD_DIR, 'index.html')); return; }
+    const staticPath = join(DASHBOARD_DIR, path.slice(1));
+    if (!staticPath.startsWith(DASHBOARD_DIR)) { res.writeHead(400); res.end(); return; }
+    serveFile(res, staticPath);
+  } catch (err) {
+    console.error('[server] Unhandled request error:', err);
+    if (!res.headersSent) {
+      res.writeHead(500, { 'Content-Type': 'application/json' });
+      res.end(JSON.stringify({ error: 'Internal server error' }));
+    }
   }
-
-  // Telegram webhook
-  if (path === '/webhook/telegram' && req.method === 'POST') {
-    const secret = req.headers['x-telegram-bot-api-secret-token'];
-    if (WEBHOOK_SECRET && secret !== WEBHOOK_SECRET) { res.writeHead(403); res.end(); return; }
-    const body = await readBody(req);
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    await getBot().handleUpdate(body as any);
-    res.writeHead(200); res.end();
-    return;
-  }
-
-  // Auth routes (no JWT required)
-  if (path === '/api/auth/init' && req.method === 'POST') { await handleInitLogin(req, res); return; }
-  if (path === '/api/auth/exchange' && req.method === 'GET') {
-    handleNonceExchange(req, res, url.searchParams.get('nonce') ?? ''); return;
-  }
-
-  // Protected API routes
-  if (path.startsWith('/api/')) {
-    if (!requireAuth(req, res)) return;
-
-    if (path === '/api/share' && req.method === 'GET') { handleGetShareLinks(req, res); return; }
-    if (path === '/api/share' && req.method === 'POST') {
-      const body = await readBody(req) as { label: string; expiresInDays: number | null };
-      handleCreateShareLink(req, res, body); return;
-    }
-    if (path.startsWith('/api/share/') && req.method === 'DELETE') {
-      handleRevokeShareLink(req, res, path.slice('/api/share/'.length)); return;
-    }
-    if (path.startsWith('/api/briefs/') && !path.endsWith('/approve') && req.method === 'GET') {
-      handleGetBrief(req, res, path.slice('/api/briefs/'.length)); return;
-    }
-    if (path.startsWith('/api/briefs/') && path.endsWith('/approve') && req.method === 'POST') {
-      const date = path.slice('/api/briefs/'.length).replace('/approve', '');
-      await handleApproveBrief(req, res, date); return;
-    }
-    if (path === '/api/generate' && req.method === 'POST') {
-      const body = await readBody(req) as { date: string };
-      await handleGenerateBrief(req, res, body.date); return;
-    }
-    if (path === '/api/proposals' && req.method === 'GET') {
-      await handleGetProposals(req, res, url.searchParams.get('date') ?? ''); return;
-    }
-    if (path === '/api/proposals' && req.method === 'POST') {
-      const body = await readBody(req) as { date: string };
-      await handleGenerateProposals(req, res, body.date); return;
-    }
-    if (path.startsWith('/api/proposals/') && req.method === 'PATCH') {
-      const id = path.slice('/api/proposals/'.length);
-      const body = await readBody(req) as { status: 'approved' | 'rejected' };
-      handleUpdateProposal(req, res, id, body.status); return;
-    }
-
-    res.writeHead(404); res.end(JSON.stringify({ error: 'Not found' })); return;
-  }
-
-  // Static dashboard files
-  if (path === '/' || path === '/index.html') { serveFile(res, join(DASHBOARD_DIR, 'index.html')); return; }
-  const staticPath = join(DASHBOARD_DIR, path.slice(1));
-  if (!staticPath.startsWith(DASHBOARD_DIR)) { res.writeHead(400); res.end(); return; }
-  serveFile(res, staticPath);
 });
 
 function scheduleDailyJobs(): void {
-  setInterval(async () => {
+  setInterval(() => {
     const now = new Date();
     const hhmm = `${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`;
     const today = now.toISOString().slice(0, 10);
 
-    if (hhmm === '05:00') await fetchSchedule();
-    if (hhmm === '05:30') await refreshMonday();
-    if (hhmm === '06:00') {
-      await generateProposals(today);
-      await sendMorningSummary(today);
-    }
+    (async () => {
+      try {
+        if (hhmm === '05:00') await fetchSchedule();
+        if (hhmm === '05:30') await refreshMonday();
+        if (hhmm === '06:00') {
+          await generateProposals(today);
+          await sendMorningSummary(today);
+        }
+      } catch (err) {
+        console.error('[cron] Morning routine error:', err);
+      }
+    })();
   }, 60_000);
 
-  setInterval(() => void refreshMonday(), 30 * 60_000);
+  setInterval(() => {
+    refreshMonday().catch((err: unknown) => console.error('[cron] refreshMonday error:', err));
+  }, 30 * 60_000);
 }
 
 async function main(): Promise<void> {
