@@ -3,7 +3,13 @@ import type { SignOptions } from 'jsonwebtoken';
 import type { Role } from '../types/index.js';
 import { getDb } from '../db/client.js';
 
-const JWT_SECRET = process.env.JWT_SECRET!;
+function getJwtSecret(): string {
+  const secret = process.env.JWT_SECRET;
+  if (!secret) {
+    throw new Error('JWT_SECRET environment variable is not set');
+  }
+  return secret;
+}
 
 export interface TokenPayload {
   role: Role;
@@ -14,12 +20,12 @@ export interface TokenPayload {
 
 export function signToken(payload: Omit<TokenPayload, 'iat' | 'exp'>, expiresIn?: string): string {
   const opts: SignOptions = expiresIn ? { expiresIn: expiresIn as SignOptions['expiresIn'] } : {};
-  return jwt.sign(payload, JWT_SECRET, opts);
+  return jwt.sign(payload, getJwtSecret(), opts);
 }
 
 export function verifyToken(token: string): TokenPayload | null {
   try {
-    return jwt.verify(token, JWT_SECRET) as TokenPayload;
+    return jwt.verify(token, getJwtSecret()) as TokenPayload;
   } catch {
     return null;
   }
