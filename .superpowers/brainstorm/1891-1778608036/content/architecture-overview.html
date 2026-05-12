@@ -1,0 +1,127 @@
+<h2>Full System Architecture</h2>
+<p class="subtitle">Section 1 of 3 — Components & Data Flow. Does this look right?</p>
+
+<div style="overflow-x:auto;">
+<div style="min-width:700px;font-family:monospace;font-size:12px;">
+
+  <!-- Row 1: Data Sources -->
+  <div style="display:flex;gap:12px;margin-bottom:8px;justify-content:center;">
+    <div style="background:#1e3a5f;color:#93c5fd;border-radius:8px;padding:10px 16px;text-align:center;border:1px solid #3b82f6;">
+      <div style="font-size:16px;">📊</div>
+      <strong>Google Sheet</strong><br>
+      <span style="font-size:10px;color:#60a5fa;">Weekly crew schedule<br>(source of assignments)</span>
+    </div>
+    <div style="background:#1e3a5f;color:#93c5fd;border-radius:8px;padding:10px 16px;text-align:center;border:1px solid #3b82f6;">
+      <div style="font-size:16px;">🗂️</div>
+      <strong>Monday.com</strong><br>
+      <span style="font-size:10px;color:#60a5fa;">Jobs, addresses, materials<br>status, equipment</span>
+    </div>
+  </div>
+
+  <!-- Arrow down -->
+  <div style="text-align:center;color:#6b7280;margin-bottom:8px;font-size:18px;">↓ &nbsp; ↓</div>
+
+  <!-- Row 2: Sync Layer -->
+  <div style="display:flex;gap:12px;margin-bottom:8px;justify-content:center;">
+    <div style="background:#1c3829;color:#86efac;border-radius:8px;padding:10px 16px;text-align:center;border:1px solid #22c55e;">
+      <div style="font-size:16px;">🔄</div>
+      <strong>Schedule Fetcher</strong><br>
+      <span style="font-size:10px;color:#4ade80;">fetchSchedule.ts<br>Runs at 5:50 AM daily</span>
+    </div>
+    <div style="background:#1c3829;color:#86efac;border-radius:8px;padding:10px 16px;text-align:center;border:1px solid #22c55e;">
+      <div style="font-size:16px;">🔄</div>
+      <strong>Monday Sync</strong><br>
+      <span style="font-size:10px;color:#4ade80;">refreshMonday.ts<br>NEW — runs every 30 min</span>
+    </div>
+  </div>
+
+  <!-- Arrow down -->
+  <div style="text-align:center;color:#6b7280;margin-bottom:8px;font-size:18px;">↓ &nbsp; ↓</div>
+
+  <!-- Row 3: Database (center) -->
+  <div style="display:flex;justify-content:center;margin-bottom:8px;">
+    <div style="background:#2d1b69;color:#c4b5fd;border-radius:8px;padding:12px 24px;text-align:center;border:2px solid #7c3aed;">
+      <div style="font-size:18px;">🗄️</div>
+      <strong>SQLite Database</strong><br>
+      <span style="font-size:10px;color:#a78bfa;">jobs · briefs · crews · photos · flags · logistics · sessions<br>(replaces all JSON files — atomic writes, no corruption)</span>
+    </div>
+  </div>
+
+  <!-- Arrow down to 3 branches -->
+  <div style="text-align:center;color:#6b7280;margin-bottom:8px;font-size:18px;">↓ &nbsp; ↓ &nbsp; ↓</div>
+
+  <!-- Row 4: Core Logic -->
+  <div style="display:flex;gap:10px;margin-bottom:8px;justify-content:center;flex-wrap:wrap;">
+    <div style="background:#1e1b4b;color:#a5b4fc;border-radius:8px;padding:10px 14px;text-align:center;border:1px solid #4f46e5;min-width:130px;">
+      <div style="font-size:16px;">🤖</div>
+      <strong>Scheduling Agent</strong><br>
+      <span style="font-size:10px;color:#818cf8;">NEW — Claude AI<br>matches crews to jobs<br>based on skills + availability</span>
+    </div>
+    <div style="background:#1e1b4b;color:#a5b4fc;border-radius:8px;padding:10px 14px;text-align:center;border:1px solid #4f46e5;min-width:130px;">
+      <div style="font-size:16px;">📋</div>
+      <strong>Brief Generator</strong><br>
+      <span style="font-size:10px;color:#818cf8;">generateBriefs.ts<br>Builds per-crew<br>dispatch cards</span>
+    </div>
+    <div style="background:#1e1b4b;color:#a5b4fc;border-radius:8px;padding:10px 14px;text-align:center;border:1px solid #4f46e5;min-width:130px;">
+      <div style="font-size:16px;">🚚</div>
+      <strong>Logistics Agent</strong><br>
+      <span style="font-size:10px;color:#818cf8;">logisticsAgent.ts<br>Driver routes + stops<br>Multi-driver support</span>
+    </div>
+  </div>
+
+  <!-- Arrow down to 2 outputs -->
+  <div style="text-align:center;color:#6b7280;margin-bottom:8px;font-size:18px;">↓ &nbsp; ↓</div>
+
+  <!-- Row 5: Interfaces -->
+  <div style="display:flex;gap:10px;margin-bottom:8px;justify-content:center;flex-wrap:wrap;">
+    <div style="background:#1a2e1a;color:#86efac;border-radius:8px;padding:10px 14px;text-align:center;border:1px solid #16a34a;min-width:200px;">
+      <div style="font-size:16px;">📱</div>
+      <strong>Telegram Bot (Grammy)</strong><br>
+      <span style="font-size:10px;color:#4ade80;">
+        <strong>Scheduler chat:</strong> summary + inline buttons (Approve / Open Dashboard / Hold)<br>
+        <strong>Crew groups:</strong> dispatch + inline buttons (✅ Done / ⚠️ Problem)<br>
+        <strong>Driver chat:</strong> route plan + next stop
+      </span>
+    </div>
+    <div style="background:#1a2535;color:#93c5fd;border-radius:8px;padding:10px 14px;text-align:center;border:1px solid #0ea5e9;min-width:200px;">
+      <div style="font-size:16px;">🖥️</div>
+      <strong>Dashboard (Mobile-Responsive)</strong><br>
+      <span style="font-size:10px;color:#38bdf8;">
+        JWT auth — one login token<br>
+        Crew cards + approval UI<br>
+        Photo feed + flags<br>
+        Schedule proposals view<br>
+        Works on phone + desktop
+      </span>
+    </div>
+  </div>
+
+  <!-- Arrow down to Monday sync-back -->
+  <div style="text-align:center;color:#6b7280;margin-bottom:8px;font-size:18px;">↓</div>
+
+  <!-- Row 6: On approval -->
+  <div style="display:flex;justify-content:center;">
+    <div style="background:#1e3a5f;color:#93c5fd;border-radius:8px;padding:10px 20px;text-align:center;border:1px solid #3b82f6;max-width:400px;">
+      <div style="font-size:16px;">↩️</div>
+      <strong>On Schedule Approval</strong><br>
+      <span style="font-size:10px;color:#60a5fa;">
+        1. Dispatch messages sent to all crew Telegram groups<br>
+        2. Monday items updated with assigned crew + date<br>
+        3. Driver route plan sent to Noel / Arthur<br>
+        4. Dashboard shows real-time crew check-in status
+      </span>
+    </div>
+  </div>
+
+</div>
+</div>
+
+<div style="margin-top:16px;padding:12px;background:#111827;border-radius:8px;font-size:12px;color:#9ca3af;">
+  <strong style="color:#f9fafb;">Key changes vs. today:</strong>
+  &nbsp;JSON files → SQLite &nbsp;|&nbsp;
+  Raw fetch → Grammy (Telegram) &nbsp;|&nbsp;
+  No auth → JWT &nbsp;|&nbsp;
+  schedulingAgent.mjs (missing) → built in TS &nbsp;|&nbsp;
+  refreshMonday.mjs (missing) → built in TS &nbsp;|&nbsp;
+  All JS → TypeScript
+</div>

@@ -1,0 +1,83 @@
+<h2>Security Layer</h2>
+<p class="subtitle">Section 2 of 3 — Every entry point locked down. Does this cover your concerns?</p>
+
+<div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;font-size:12px;">
+
+  <!-- Dashboard Auth -->
+  <div style="background:#111827;border-radius:10px;padding:14px;border-left:3px solid #3b82f6;">
+    <div style="font-size:15px;margin-bottom:6px;">🖥️ <strong style="color:#93c5fd;">Dashboard Access</strong></div>
+    <ul style="color:#d1d5db;margin:0;padding-left:16px;line-height:1.8;">
+      <li><strong>JWT token</strong> — scheduler logs in once, gets a signed token</li>
+      <li>Token expires in 24h — must re-login</li>
+      <li>All <code>/api/*</code> routes reject requests with no valid token</li>
+      <li>Login page is the only unauthenticated route</li>
+      <li>No user accounts DB needed — one env var password</li>
+    </ul>
+  </div>
+
+  <!-- Telegram -->
+  <div style="background:#111827;border-radius:10px;padding:14px;border-left:3px solid #22c55e;">
+    <div style="font-size:15px;margin-bottom:6px;">📱 <strong style="color:#86efac;">Telegram Webhook</strong></div>
+    <ul style="color:#d1d5db;margin:0;padding-left:16px;line-height:1.8;">
+      <li><strong>Secret token</strong> validated on every webhook call</li>
+      <li>Requests without the secret → 403, ignored</li>
+      <li>Scheduler commands only accepted from <strong>one known chat ID</strong></li>
+      <li>Crew commands only accepted from <strong>registered group IDs</strong></li>
+      <li>Unknown senders flagged, never executed</li>
+    </ul>
+  </div>
+
+  <!-- API Validation -->
+  <div style="background:#111827;border-radius:10px;padding:14px;border-left:3px solid #f59e0b;">
+    <div style="font-size:15px;margin-bottom:6px;">🔒 <strong style="color:#fcd34d;">API Input Validation</strong></div>
+    <ul style="color:#d1d5db;margin:0;padding-left:16px;line-height:1.8;">
+      <li><strong>Zod schemas</strong> on every API endpoint</li>
+      <li>Date params must match <code>YYYY-MM-DD</code> — rejects garbage</li>
+      <li>Crew keys validated against known list</li>
+      <li>No raw SQL — SQLite via parameterized queries only</li>
+      <li>Invalid input → 400 with clear error, never crashes server</li>
+    </ul>
+  </div>
+
+  <!-- Rate Limiting -->
+  <div style="background:#111827;border-radius:10px;padding:14px;border-left:3px solid #ec4899;">
+    <div style="font-size:15px;margin-bottom:6px;">🚦 <strong style="color:#f9a8d4;">Rate Limiting</strong></div>
+    <ul style="color:#d1d5db;margin:0;padding-left:16px;line-height:1.8;">
+      <li>Max <strong>60 requests / min</strong> per IP on all routes</li>
+      <li>Max <strong>5 login attempts / min</strong> on auth route</li>
+      <li>Exceeded → 429, auto-unlocks after 1 min</li>
+      <li>Prevents brute-force on login + API abuse</li>
+    </ul>
+  </div>
+
+  <!-- File Security -->
+  <div style="background:#111827;border-radius:10px;padding:14px;border-left:3px solid #8b5cf6;">
+    <div style="font-size:15px;margin-bottom:6px;">📁 <strong style="color:#c4b5fd;">File & Photo Security</strong></div>
+    <ul style="color:#d1d5db;margin:0;padding-left:16px;line-height:1.8;">
+      <li>Photo paths resolved with <code>path.resolve</code> + prefix check</li>
+      <li>Path traversal (<code>../../etc/passwd</code>) → 400, blocked</li>
+      <li>Static files served from a whitelist of safe dirs only</li>
+      <li>No user-controlled filenames ever written to disk</li>
+    </ul>
+  </div>
+
+  <!-- Secrets -->
+  <div style="background:#111827;border-radius:10px;padding:14px;border-left:3px solid #ef4444;">
+    <div style="font-size:15px;margin-bottom:6px;">🔑 <strong style="color:#fca5a5;">Secrets & Environment</strong></div>
+    <ul style="color:#d1d5db;margin:0;padding-left:16px;line-height:1.8;">
+      <li>All secrets in <code>.env</code> — never hardcoded</li>
+      <li>Server validates all required env vars on startup — crashes fast with a clear message if any are missing</li>
+      <li>Logs never print tokens, API keys, or chat IDs</li>
+      <li><code>.env</code> in <code>.gitignore</code> — never committed</li>
+    </ul>
+  </div>
+
+</div>
+
+<div style="margin-top:14px;padding:12px;background:#111827;border-radius:8px;font-size:12px;color:#9ca3af;border-left:3px solid #6b7280;">
+  <strong style="color:#f9fafb;">What this does NOT cover (out of scope for now):</strong>
+  &nbsp; Multi-user roles (admin vs. viewer) &nbsp;|&nbsp;
+  End-to-end encryption of stored data &nbsp;|&nbsp;
+  SOC2 / compliance auditing &nbsp;|&nbsp;
+  DDoS protection beyond Railway's built-in limits
+</div>

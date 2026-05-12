@@ -1,0 +1,79 @@
+<h2>Login Screen Options</h2>
+<p class="subtitle">Professional, fast to use, works on phone. Pick the style that feels right.</p>
+
+<div class="cards">
+
+  <!-- Option A: Single Password -->
+  <div class="card" data-choice="a" onclick="toggleSelect(this)">
+    <div class="card-image" style="background:#0f172a;padding:20px;min-height:320px;display:flex;align-items:center;justify-content:center;">
+      <div style="width:100%;max-width:280px;">
+        <div style="text-align:center;margin-bottom:24px;">
+          <div style="font-size:28px;font-weight:800;color:#f8fafc;letter-spacing:-1px;">IBP</div>
+          <div style="font-size:11px;color:#64748b;letter-spacing:3px;text-transform:uppercase;margin-top:2px;">Crew Dispatch</div>
+        </div>
+        <div style="background:#1e293b;border-radius:10px;padding:20px;">
+          <div style="font-size:10px;color:#64748b;letter-spacing:1px;text-transform:uppercase;margin-bottom:6px;">Password</div>
+          <div style="background:#0f172a;border:1px solid #334155;border-radius:6px;padding:10px 14px;color:#64748b;font-size:13px;margin-bottom:14px;">••••••••</div>
+          <div style="background:#3b82f6;border-radius:6px;padding:11px;text-align:center;color:white;font-weight:600;font-size:13px;">Sign In →</div>
+        </div>
+        <div style="text-align:center;margin-top:10px;font-size:10px;color:#334155;">IBP Group · Florida Operations</div>
+      </div>
+    </div>
+    <div class="card-body">
+      <h3>Single Password</h3>
+      <p>One field, one button. Fastest possible login — tap, type, go. No username needed since there's one scheduler.</p>
+    </div>
+  </div>
+
+  <!-- Option B: Email + Password -->
+  <div class="card" data-choice="b" onclick="toggleSelect(this)">
+    <div class="card-image" style="background:#0a0a0a;padding:20px;min-height:320px;display:flex;align-items:center;justify-content:center;">
+      <div style="width:100%;max-width:280px;">
+        <div style="text-align:center;margin-bottom:20px;">
+          <div style="width:44px;height:44px;background:#f97316;border-radius:10px;margin:0 auto 10px;display:flex;align-items:center;justify-content:center;font-size:20px;">🏗️</div>
+          <div style="font-size:18px;font-weight:700;color:#fafafa;">IBP Dispatch</div>
+          <div style="font-size:11px;color:#525252;margin-top:2px;">Operations Dashboard</div>
+        </div>
+        <div style="display:flex;flex-direction:column;gap:10px;">
+          <div>
+            <div style="font-size:10px;color:#737373;margin-bottom:4px;">Email</div>
+            <div style="background:#171717;border:1px solid #262626;border-radius:6px;padding:9px 12px;color:#525252;font-size:12px;">scheduler@ibpgroup.com</div>
+          </div>
+          <div>
+            <div style="font-size:10px;color:#737373;margin-bottom:4px;">Password</div>
+            <div style="background:#171717;border:1px solid #262626;border-radius:6px;padding:9px 12px;color:#525252;font-size:12px;">••••••••••</div>
+          </div>
+          <div style="background:#f97316;border-radius:6px;padding:10px;text-align:center;color:white;font-weight:600;font-size:13px;margin-top:2px;">Sign In</div>
+        </div>
+      </div>
+    </div>
+    <div class="card-body">
+      <h3>Email + Password</h3>
+      <p>Standard login. Slightly more typing but supports multiple users in the future. Browser autofill makes it fast after first login.</p>
+    </div>
+  </div>
+
+  <!-- Option C: Magic Link via Telegram -->
+  <div class="card" data-choice="c" onclick="toggleSelect(this)">
+    <div class="card-image" style="background:#0d1117;padding:20px;min-height:320px;display:flex;align-items:center;justify-content:center;">
+      <div style="width:100%;max-width:280px;">
+        <div style="text-align:center;margin-bottom:20px;">
+          <div style="font-size:22px;font-weight:800;color:#e6edf3;letter-spacing:-0.5px;">IBP <span style="color:#3b82f6;">Dispatch</span></div>
+          <div style="font-size:10px;color:#484f58;letter-spacing:2px;text-transform:uppercase;margin-top:3px;">Operations Center</div>
+        </div>
+        <div style="background:#161b22;border:1px solid #30363d;border-radius:10px;padding:18px;text-align:center;">
+          <div style="font-size:28px;margin-bottom:10px;">📱</div>
+          <div style="font-size:12px;color:#e6edf3;font-weight:600;margin-bottom:6px;">Login via Telegram</div>
+          <div style="font-size:11px;color:#484f58;margin-bottom:14px;">Tap the button below — the bot will send you a one-time link</div>
+          <div style="background:#1f6feb;border-radius:6px;padding:10px;color:white;font-size:12px;font-weight:600;">Open Telegram Bot →</div>
+          <div style="margin-top:10px;font-size:10px;color:#484f58;">Link expires in 10 minutes</div>
+        </div>
+      </div>
+    </div>
+    <div class="card-body">
+      <h3>Magic Link via Telegram</h3>
+      <p>No password to remember. Tap a button, bot sends a link to your Telegram, click it — you're in. Expires in 10 min. Most secure option.</p>
+    </div>
+  </div>
+
+</div>

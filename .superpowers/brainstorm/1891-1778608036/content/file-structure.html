@@ -1,0 +1,120 @@
+<h2>File Structure & Module Map</h2>
+<p class="subtitle">Section 3 of 3 — Every file, what it does, and whether it's new or migrated.</p>
+
+<div style="font-size:11px;display:flex;gap:8px;margin-bottom:12px;flex-wrap:wrap;">
+  <span style="background:#1c3829;color:#4ade80;padding:3px 10px;border-radius:12px;border:1px solid #22c55e;">🟢 Migrate JS→TS (keep logic)</span>
+  <span style="background:#1e1b4b;color:#a5b4fc;padding:3px 10px;border-radius:12px;border:1px solid #4f46e5;">🟣 Build new</span>
+  <span style="background:#1e3a5f;color:#93c5fd;padding:3px 10px;border-radius:12px;border:1px solid #3b82f6;">🔵 Extend existing</span>
+  <span style="background:#2d1b1b;color:#fca5a5;padding:3px 10px;border-radius:12px;border:1px solid #ef4444;">🔴 Delete (replaced)</span>
+</div>
+
+<div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;font-size:11px;font-family:monospace;">
+
+  <!-- src/db -->
+  <div style="background:#111827;border-radius:8px;padding:12px;border-left:3px solid #7c3aed;">
+    <div style="color:#c4b5fd;font-weight:bold;margin-bottom:8px;">📁 src/db/</div>
+    <div style="line-height:2;color:#d1d5db;">
+      <span style="color:#a5b4fc;">🟣</span> schema.ts <span style="color:#6b7280;">— SQLite table definitions</span><br>
+      <span style="color:#a5b4fc;">🟣</span> migrations.ts <span style="color:#6b7280;">— run once on startup</span><br>
+      <span style="color:#a5b4fc;">🟣</span> client.ts <span style="color:#6b7280;">— shared DB instance (better-sqlite3)</span><br>
+      <span style="color:#fca5a5;">🔴</span> <s>data/*.json</s> <span style="color:#6b7280;">— all JSON files deleted</span>
+    </div>
+  </div>
+
+  <!-- src/middleware -->
+  <div style="background:#111827;border-radius:8px;padding:12px;border-left:3px solid #f59e0b;">
+    <div style="color:#fcd34d;font-weight:bold;margin-bottom:8px;">📁 src/middleware/</div>
+    <div style="line-height:2;color:#d1d5db;">
+      <span style="color:#a5b4fc;">🟣</span> auth.ts <span style="color:#6b7280;">— JWT verify on every /api route</span><br>
+      <span style="color:#a5b4fc;">🟣</span> validate.ts <span style="color:#6b7280;">— Zod wrapper for req.body/params</span><br>
+      <span style="color:#a5b4fc;">🟣</span> rateLimit.ts <span style="color:#6b7280;">— in-memory sliding window</span>
+    </div>
+  </div>
+
+  <!-- src/agents -->
+  <div style="background:#111827;border-radius:8px;padding:12px;border-left:3px solid #4f46e5;">
+    <div style="color:#a5b4fc;font-weight:bold;margin-bottom:8px;">📁 src/agents/</div>
+    <div style="line-height:2;color:#d1d5db;">
+      <span style="color:#a5b4fc;">🟣</span> schedulingAgent.ts <span style="color:#6b7280;">— Claude AI: jobs→crew proposals</span><br>
+      <span style="color:#4ade80;">🟢</span> logisticsAgent.ts <span style="color:#6b7280;">— driver routes (+ multi-driver)</span><br>
+      <span style="color:#4ade80;">🟢</span> dispatchChat.ts <span style="color:#6b7280;">— Claude Haiku assistant</span>
+    </div>
+  </div>
+
+  <!-- src/monday -->
+  <div style="background:#111827;border-radius:8px;padding:12px;border-left:3px solid #3b82f6;">
+    <div style="color:#93c5fd;font-weight:bold;margin-bottom:8px;">📁 src/monday/</div>
+    <div style="line-height:2;color:#d1d5db;">
+      <span style="color:#a5b4fc;">🟣</span> refreshMonday.ts <span style="color:#6b7280;">— auto job sync every 30 min</span><br>
+      <span style="color:#4ade80;">🟢</span> fetchJobs.ts <span style="color:#6b7280;">— GraphQL job fetch</span><br>
+      <span style="color:#93c5fd;">🔵</span> addUpdate.ts <span style="color:#6b7280;">— post crew check-ins to item</span><br>
+      <span style="color:#93c5fd;">🔵</span> uploadPhoto.ts <span style="color:#6b7280;">— multipart photo upload</span><br>
+      <span style="color:#4ade80;">🟢</span> api.ts <span style="color:#6b7280;">— GraphQL wrapper</span>
+    </div>
+  </div>
+
+  <!-- src/telegram -->
+  <div style="background:#111827;border-radius:8px;padding:12px;border-left:3px solid #22c55e;">
+    <div style="color:#86efac;font-weight:bold;margin-bottom:8px;">📁 src/telegram/</div>
+    <div style="line-height:2;color:#d1d5db;">
+      <span style="color:#a5b4fc;">🟣</span> schedulerBot.ts <span style="color:#6b7280;">— morning summary + approve buttons</span><br>
+      <span style="color:#93c5fd;">🔵</span> dispatcher.ts <span style="color:#6b7280;">— send briefs to crew groups</span><br>
+      <span style="color:#93c5fd;">🔵</span> messageHandler.ts <span style="color:#6b7280;">— inline keyboards for crews</span><br>
+      <span style="color:#93c5fd;">🔵</span> photoHandler.ts <span style="color:#6b7280;">— Vision analysis + Monday</span><br>
+      <span style="color:#fca5a5;">🔴</span> <s>bot.mjs + poller.mjs</s> <span style="color:#6b7280;">— replaced by Grammy</span>
+    </div>
+  </div>
+
+  <!-- src/server -->
+  <div style="background:#111827;border-radius:8px;padding:12px;border-left:3px solid #0ea5e9;">
+    <div style="color:#7dd3fc;font-weight:bold;margin-bottom:8px;">📁 src/server/</div>
+    <div style="line-height:2;color:#d1d5db;">
+      <span style="color:#93c5fd;">🔵</span> index.ts <span style="color:#6b7280;">— HTTP server + routes + cron</span><br>
+      <span style="color:#a5b4fc;">🟣</span> routes/auth.ts <span style="color:#6b7280;">— POST /api/login → JWT</span><br>
+      <span style="color:#93c5fd;">🔵</span> routes/briefs.ts <span style="color:#6b7280;">— brief CRUD + approve</span><br>
+      <span style="color:#93c5fd;">🔵</span> routes/proposals.ts <span style="color:#6b7280;">— scheduling agent endpoints</span><br>
+      <span style="color:#93c5fd;">🔵</span> routes/logistics.ts <span style="color:#6b7280;">— driver run endpoints</span>
+    </div>
+  </div>
+
+  <!-- src/core -->
+  <div style="background:#111827;border-radius:8px;padding:12px;border-left:3px solid #10b981;">
+    <div style="color:#6ee7b7;font-weight:bold;margin-bottom:8px;">📁 src/core/ (renamed from src/)</div>
+    <div style="line-height:2;color:#d1d5db;">
+      <span style="color:#4ade80;">🟢</span> fetchSchedule.ts <span style="color:#6b7280;">— Google Sheet CSV fetch</span><br>
+      <span style="color:#4ade80;">🟢</span> scheduleParser.ts <span style="color:#6b7280;">— CSV → schedule records</span><br>
+      <span style="color:#4ade80;">🟢</span> generateBriefs.ts <span style="color:#6b7280;">— records + jobs → briefs</span><br>
+      <span style="color:#4ade80;">🟢</span> analyzeSchedule.ts <span style="color:#6b7280;">— weekly analysis report</span><br>
+      <span style="color:#4ade80;">🟢</span> config.ts <span style="color:#6b7280;">— crew profiles + rules</span>
+    </div>
+  </div>
+
+  <!-- dashboard -->
+  <div style="background:#111827;border-radius:8px;padding:12px;border-left:3px solid #f97316;">
+    <div style="color:#fdba74;font-weight:bold;margin-bottom:8px;">📁 dashboard/ (frontend)</div>
+    <div style="line-height:2;color:#d1d5db;">
+      <span style="color:#93c5fd;">🔵</span> index.html <span style="color:#6b7280;">— add login screen</span><br>
+      <span style="color:#93c5fd;">🔵</span> style.css <span style="color:#6b7280;">— mobile-responsive layout</span><br>
+      <span style="color:#93c5fd;">🔵</span> app.js <span style="color:#6b7280;">— attach JWT to all fetch calls</span><br>
+      <span style="color:#93c5fd;">🔵</span> proposals.js <span style="color:#6b7280;">— scheduling proposals UI</span><br>
+      <span style="color:#4ade80;">🟢</span> chat.js / logistics.js <span style="color:#6b7280;">— keep as-is</span>
+    </div>
+  </div>
+
+</div>
+
+<div style="margin-top:12px;background:#111827;border-radius:8px;padding:12px;font-size:11px;font-family:monospace;">
+  <div style="color:#f9fafb;font-weight:bold;margin-bottom:6px;">🗄️ SQLite Tables</div>
+  <div style="display:flex;gap:8px;flex-wrap:wrap;color:#9ca3af;">
+    <span style="background:#1f2937;padding:3px 8px;border-radius:4px;">jobs</span>
+    <span style="background:#1f2937;padding:3px 8px;border-radius:4px;">briefs</span>
+    <span style="background:#1f2937;padding:3px 8px;border-radius:4px;">brief_jobs</span>
+    <span style="background:#1f2937;padding:3px 8px;border-radius:4px;">crews</span>
+    <span style="background:#1f2937;padding:3px 8px;border-radius:4px;">photos</span>
+    <span style="background:#1f2937;padding:3px 8px;border-radius:4px;">flags</span>
+    <span style="background:#1f2937;padding:3px 8px;border-radius:4px;">logistics_runs</span>
+    <span style="background:#1f2937;padding:3px 8px;border-radius:4px;">schedule_proposals</span>
+    <span style="background:#1f2937;padding:3px 8px;border-radius:4px;">learned_phrases</span>
+    <span style="background:#1f2937;padding:3px 8px;border-radius:4px;">sessions</span>
+  </div>
+</div>

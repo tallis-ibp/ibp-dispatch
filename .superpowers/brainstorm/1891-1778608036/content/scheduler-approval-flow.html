@@ -1,0 +1,85 @@
+<h2>Scheduler Approval Flow</h2>
+<p class="subtitle">How should the scheduler approve the daily schedule from their phone?</p>
+
+<div class="options">
+
+  <div class="option" data-choice="a" onclick="toggleSelect(this)">
+    <div class="letter">A</div>
+    <div class="content">
+      <h3>Telegram-first <span style="background:#22c55e;color:white;font-size:11px;padding:2px 7px;border-radius:10px;margin-left:8px;">Recommended</span></h3>
+      <p>Every morning the bot sends a summary to the scheduler's personal Telegram. One tap to approve and dispatch all crews.</p>
+      <div class="mockup" style="margin-top:12px;">
+        <div class="mockup-header">Scheduler's Telegram (personal chat with bot)</div>
+        <div class="mockup-body" style="font-size:13px;font-family:monospace;background:#1e1e1e;color:#e0e0e0;padding:14px;border-radius:6px;line-height:1.7;">
+          <div style="background:#2a5298;border-radius:10px 10px 10px 2px;padding:10px 14px;margin-bottom:8px;max-width:85%;font-size:12px;">
+            <strong>📋 Schedule Ready — Tuesday May 13</strong><br><br>
+            <span style="color:#a3c4f5;">SANTIAGO</span> → Gilroy #600049 (Deck)<br>
+            <span style="color:#a3c4f5;">PENNA</span> → Natalia Gove #170829<br>
+            <span style="color:#a3c4f5;">WAYPE</span> → Pine Tree #800003<br>
+            <span style="color:#a3c4f5;">TOBY</span> → Favilla #280608 (Coping)<br>
+            <span style="color:#a3c4f5;">FAUSTO</span> → OFF<br><br>
+            <span style="color:#fbbf24;">⚠️ 2 flags: Penna missing gate code, Toby material unconfirmed</span><br><br>
+            <em style="color:#9ca3af;font-size:11px;">Auto-sends at 6:30 AM if no response</em>
+          </div>
+          <div style="display:flex;gap:8px;margin-top:4px;">
+            <span style="background:#22c55e;color:white;border-radius:16px;padding:6px 14px;font-size:12px;cursor:pointer;">✅ Approve &amp; Send</span>
+            <span style="background:#3b82f6;color:white;border-radius:16px;padding:6px 14px;font-size:12px;cursor:pointer;">✏️ Open Dashboard</span>
+            <span style="background:#ef4444;color:white;border-radius:16px;padding:6px 14px;font-size:12px;cursor:pointer;">🚫 Hold</span>
+          </div>
+        </div>
+      </div>
+      <p style="margin-top:10px;font-size:13px;color:#6b7280;">Tapping <strong>Approve &amp; Send</strong> dispatches all crews instantly. <strong>Open Dashboard</strong> opens the mobile web app to edit first. <strong>Hold</strong> pauses auto-send and alerts the scheduler.</p>
+    </div>
+  </div>
+
+  <div class="option" data-choice="b" onclick="toggleSelect(this)">
+    <div class="letter">B</div>
+    <div class="content">
+      <h3>Mobile Dashboard only</h3>
+      <p>Scheduler opens the web app on their phone browser to review and approve. No Telegram interaction for the scheduler themselves.</p>
+      <div class="mockup" style="margin-top:12px;">
+        <div class="mockup-header">Mobile browser — dashboard</div>
+        <div class="mockup-body" style="display:flex;gap:12px;">
+          <div style="background:#111827;border-radius:12px;padding:12px;width:160px;font-size:11px;color:#e5e7eb;font-family:monospace;">
+            <div style="background:#1f2937;border-radius:6px;padding:8px;margin-bottom:6px;">
+              <strong style="color:#60a5fa;">SANTIAGO</strong><br>
+              Gilroy #600049<br>
+              <span style="color:#22c55e;font-size:10px;">● Ready</span>
+            </div>
+            <div style="background:#1f2937;border-radius:6px;padding:8px;margin-bottom:6px;">
+              <strong style="color:#60a5fa;">PENNA</strong><br>
+              Natalia Gove<br>
+              <span style="color:#fbbf24;font-size:10px;">⚠ Gate code missing</span>
+            </div>
+            <div style="background:#22c55e;border-radius:6px;padding:8px;text-align:center;color:white;font-weight:bold;">
+              APPROVE ALL
+            </div>
+          </div>
+          <div style="font-size:12px;color:#6b7280;align-self:center;">
+            <p>Pros:<br>• Full edit capability<br>• See all details</p>
+            <p>Cons:<br>• Must open browser<br>• Slower than Telegram</p>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="option" data-choice="c" onclick="toggleSelect(this)">
+    <div class="letter">C</div>
+    <div class="content">
+      <h3>Both — Telegram quick-approve + Mobile dashboard</h3>
+      <p>Telegram for the 80% case (just approve), dashboard for when edits are needed. Same as Option A but making it explicit both channels work.</p>
+      <div style="margin-top:10px;font-size:13px;background:#f0fdf4;border-radius:6px;padding:12px;">
+        <strong style="color:#15803d;">Flow:</strong>
+        <ol style="margin:6px 0 0 0;padding-left:20px;line-height:1.9;">
+          <li>Bot sends morning summary to scheduler's Telegram</li>
+          <li>No issues → tap <strong>Approve &amp; Send</strong> → done in 5 seconds</li>
+          <li>Issues → tap <strong>Open Dashboard</strong> → fix on mobile browser → approve</li>
+          <li>No response by 6:30 AM → bot sends reminder</li>
+          <li>Still no response → auto-hold (does NOT send without approval)</li>
+        </ol>
+      </div>
+    </div>
+  </div>
+
+</div>

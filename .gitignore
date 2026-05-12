@@ -1,0 +1,28 @@
+# Environment & secrets — NEVER commit these
+.env
+.env.local
+.env.*.local
+
+# macOS
+.DS_Store
+
+# Node
+node_modules/
+npm-debug.log*
+
+# Generated data (daily — don't version)
+data/raw/
+data/schedule-records.json
+data/schedule-tabs.json
+data/monday-jobs.json
+data/briefs/
+data/logistics/
+data/flags/
+data/learned-phrases.json
+reports/*.md
+logs/
+
+# Keep folder placeholders
+!data/.gitkeep
+!reports/.gitkeep
+!logs/.gitkeep

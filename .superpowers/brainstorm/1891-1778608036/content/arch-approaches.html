@@ -1,0 +1,114 @@
+<h2>3 Architecture Approaches</h2>
+<p class="subtitle">How to rebuild this on a solid foundation — pick your strategy</p>
+
+<div class="options">
+
+  <div class="option" data-choice="b" onclick="toggleSelect(this)">
+    <div class="letter">A</div>
+    <div class="content">
+      <h3>Solid Foundation <span style="background:#22c55e;color:white;font-size:11px;padding:2px 7px;border-radius:10px;margin-left:8px;">Recommended</span></h3>
+      <p>Migrate to TypeScript + replace fragile JSON files with SQLite + proper Telegram library + add auth. Fill all 4 missing files. Mobile-responsive dashboard.</p>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:10px;font-size:13px;">
+        <div style="background:#f0fdf4;border-radius:6px;padding:10px;">
+          <strong style="color:#15803d;">What stays</strong>
+          <ul style="margin:6px 0 0 0;padding-left:16px;">
+            <li>All existing logic (parsing, briefs, dispatch)</li>
+            <li>Monday.com integration</li>
+            <li>Google Sheet fetch</li>
+            <li>Claude Vision photo analysis</li>
+            <li>Dashboard structure</li>
+          </ul>
+        </div>
+        <div style="background:#eff6ff;border-radius:6px;padding:10px;">
+          <strong style="color:#1d4ed8;">What changes</strong>
+          <ul style="margin:6px 0 0 0;padding-left:16px;">
+            <li>JS → TypeScript (all files)</li>
+            <li>JSON files → SQLite database</li>
+            <li>Raw fetch → Grammy (Telegram lib)</li>
+            <li>No auth → JWT token for dashboard</li>
+            <li>No validation → Zod on all API endpoints</li>
+            <li>Mobile-responsive CSS</li>
+          </ul>
+        </div>
+        <div style="background:#fef9c3;border-radius:6px;padding:10px;">
+          <strong style="color:#854d0e;">What gets built new</strong>
+          <ul style="margin:6px 0 0 0;padding-left:16px;">
+            <li>schedulingAgent.ts (AI crew→job matching)</li>
+            <li>refreshMonday.ts (auto job sync)</li>
+            <li>Telegram inline keyboards for crews</li>
+            <li>Scheduler approval via Telegram</li>
+            <li>Monday sync on schedule approval</li>
+          </ul>
+        </div>
+        <div style="background:#fdf2f8;border-radius:6px;padding:10px;">
+          <strong style="color:#86198f;">Effort estimate</strong>
+          <ul style="margin:6px 0 0 0;padding-left:16px;">
+            <li>~3–4 days of development</li>
+            <li>Zero downtime migration</li>
+            <li>Can test piece by piece</li>
+            <li>Safe for production</li>
+          </ul>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="option" data-choice="a" onclick="toggleSelect(this)">
+    <div class="letter">B</div>
+    <div class="content">
+      <h3>Minimal Patch</h3>
+      <p>Just fill the 4 missing files and add basic security. No TypeScript, no database migration. Fastest path.</p>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:10px;font-size:13px;">
+        <div style="background:#f0fdf4;border-radius:6px;padding:10px;">
+          <strong style="color:#15803d;">What changes</strong>
+          <ul style="margin:6px 0 0 0;padding-left:16px;">
+            <li>Fill 4 missing files</li>
+            <li>Add rate limiting + input validation</li>
+            <li>Add basic password for dashboard</li>
+          </ul>
+        </div>
+        <div style="background:#fef2f2;border-radius:6px;padding:10px;">
+          <strong style="color:#b91c1c;">Risks remain</strong>
+          <ul style="margin:6px 0 0 0;padding-left:16px;">
+            <li>JSON files can corrupt on crash</li>
+            <li>No type safety — bugs only show in production</li>
+            <li>Telegram polling brittle (no retries)</li>
+            <li>No mobile support on dashboard</li>
+            <li>Grows harder to maintain</li>
+          </ul>
+        </div>
+      </div>
+      <p style="margin-top:10px;font-size:13px;color:#6b7280;">~1 day of work. Gets it working. Doesn't make it solid.</p>
+    </div>
+  </div>
+
+  <div class="option" data-choice="c" onclick="toggleSelect(this)">
+    <div class="letter">C</div>
+    <div class="content">
+      <h3>Full Rewrite (Next.js + Prisma)</h3>
+      <p>Tear out everything and rebuild on Next.js 15 + Prisma + PostgreSQL + shadcn/ui.</p>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:10px;font-size:13px;">
+        <div style="background:#f0fdf4;border-radius:6px;padding:10px;">
+          <strong style="color:#15803d;">Pros</strong>
+          <ul style="margin:6px 0 0 0;padding-left:16px;">
+            <li>Modern, polished dashboard</li>
+            <li>Type-safe DB queries</li>
+            <li>Industry-standard stack</li>
+            <li>Beautiful mobile UI out of the box</li>
+          </ul>
+        </div>
+        <div style="background:#fef2f2;border-radius:6px;padding:10px;">
+          <strong style="color:#b91c1c;">Cons</strong>
+          <ul style="margin:6px 0 0 0;padding-left:16px;">
+            <li>2–3 weeks of work minimum</li>
+            <li>High risk of regression</li>
+            <li>Breaks working integrations</li>
+            <li>Overkill for a 1–2 person ops tool</li>
+          </ul>
+        </div>
+      </div>
+      <p style="margin-top:10px;font-size:13px;color:#6b7280;">Not worth it at this stage. Revisit in 6 months if the tool grows.</p>
+    </div>
+  </div>
+
+</div>

@@ -1,0 +1,83 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://example.local/schemas/monday-job.schema.json",
+  "title": "Monday Job Export",
+  "description": "Local JSON shape Claude Code should write after reading monday.com boards.",
+  "type": "object",
+  "required": ["generatedAt", "jobs"],
+  "additionalProperties": true,
+  "properties": {
+    "generatedAt": {
+      "type": "string",
+      "description": "ISO timestamp when Claude Code refreshed the monday.com data."
+    },
+    "source": {
+      "type": "string"
+    },
+    "boards": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": true,
+        "properties": {
+          "boardId": { "type": "string" },
+          "boardName": { "type": "string" },
+          "purpose": { "type": "string" }
+        }
+      }
+    },
+    "jobs": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["jobNumber", "itemName"],
+        "additionalProperties": true,
+        "properties": {
+          "jobNumber": {
+            "type": "string",
+            "description": "Unique job number without the leading # when possible, e.g. 170810."
+          },
+          "mondayItemId": { "type": "string" },
+          "boardName": { "type": "string" },
+          "itemName": { "type": "string" },
+          "customerName": { "type": "string" },
+          "address": { "type": "string" },
+          "city": { "type": "string" },
+          "clientType": { "type": "string" },
+          "jobType": { "type": "string" },
+          "status": { "type": "string" },
+          "priority": { "type": "string" },
+          "promisedDate": { "type": "string" },
+          "materialStatus": { "type": "string" },
+          "materialReady": {
+            "type": ["boolean", "null"]
+          },
+          "permitStatus": { "type": "string" },
+          "estimatedCrewDays": {
+            "type": ["number", "null"]
+          },
+          "estimatedPeople": {
+            "type": ["number", "null"]
+          },
+          "crewPreference": { "type": "string" },
+          "crewRestrictions": { "type": "string" },
+          "equipmentNeeded": {
+            "type": "array",
+            "items": { "type": "string" }
+          },
+          "trailerNeeded": {
+            "type": "array",
+            "items": { "type": "string" }
+          },
+          "driverNeeded": { "type": "boolean" },
+          "skidSteerNeeded": { "type": "boolean" },
+          "concretePumpNeeded": { "type": "boolean" },
+          "warehouseSupportNeeded": { "type": "boolean" },
+          "logisticsStatus": { "type": "string" },
+          "logisticsOwner": { "type": "string" },
+          "notes": { "type": "string" }
+        }
+      }
+    }
+  }
+}

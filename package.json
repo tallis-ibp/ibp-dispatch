@@ -1,0 +1,19 @@
+{
+  "name": "crew-scheduler-automation-starter",
+  "version": "0.2.0",
+  "private": true,
+  "type": "module",
+  "description": "IBP crew dispatch system — daily briefs, Telegram work orders, photo AI logging to Monday.com",
+  "scripts": {
+    "fetch:schedule":  "node --env-file=.env src/fetchSchedule.mjs",
+    "fetch:monday":    "node --env-file=.env src/scripts/refreshMonday.mjs",
+    "analyze":         "node --env-file=.env src/analyzeSchedule.mjs",
+    "refresh":         "npm run fetch:monday && npm run fetch:schedule && npm run brief",
+    "brief":           "node --env-file=.env src/generateBriefs.mjs",
+    "server":          "node --env-file=.env src/server/index.mjs",
+    "setup:webhook":   "node --env-file=.env src/scripts/setupWebhook.mjs"
+  },
+  "engines": {
+    "node": ">=18"
+  }
+}

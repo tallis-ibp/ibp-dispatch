@@ -1,0 +1,97 @@
+{
+  "santiago": {
+    "groupId": "-5168528812",
+    "displayName": "Santiago",
+    "language": "es"
+  },
+  "penna": {
+    "groupId": "-5138510741",
+    "displayName": "Penna",
+    "language": "pt"
+  },
+  "waype": {
+    "groupId": "-5175362594",
+    "displayName": "Waype",
+    "language": "pt"
+  },
+  "wanderson": {
+    "groupId": "-5251121268",
+    "displayName": "Wanderson",
+    "language": "pt"
+  },
+  "marcelao": {
+    "groupId": "-5265033434",
+    "displayName": "Marcelao",
+    "language": "pt"
+  },
+  "fausto": {
+    "groupId": "-5061331712",
+    "displayName": "Fausto",
+    "language": "pt"
+  },
+  "toby": {
+    "groupId": "-5008667248",
+    "displayName": "Toby",
+    "language": "en"
+  },
+  "ludwing_tarcizio": {
+    "groupId": "-5227358458",
+    "displayName": "Ludwing/Tarcizio",
+    "language": "es"
+  },
+  "mario_wilcher": {
+    "groupId": "-5088711708",
+    "displayName": "Mario/Wilcher",
+    "language": "es"
+  },
+  "felipe_miliati": {
+    "groupId": "-5194586736",
+    "displayName": "Felipe Miliati",
+    "language": "pt"
+  },
+  "bruno_pacheco": {
+    "groupId": "-5094790673",
+    "displayName": "Bruno Pacheco",
+    "language": "pt"
+  },
+  "marcelo_master_care": {
+    "groupId": "-5137267860",
+    "displayName": "Marcelo Master Care",
+    "language": "pt"
+  },
+  "gervin_julio": {
+    "groupId": "-5267902534",
+    "displayName": "Gervin/Julio",
+    "language": "es"
+  },
+  "mauro_tile": {
+    "groupId": "",
+    "displayName": "Mauro Tile Crew",
+    "language": "pt"
+  },
+  "noel": {
+    "groupId": "-5159831556",
+    "displayName": "Noel (Driver)",
+    "language": "es"
+  },
+  "arthur": {
+    "groupId": "-5191498673",
+    "displayName": "Arthur (Driver)",
+    "language": "pt"
+  },
+  "wilson": {
+    "groupId": "-5268268843",
+    "displayName": "Wilson",
+    "language": "pt"
+  },
+  "gilberto": {
+    "groupId": "-5219806299",
+    "displayName": "Gilberto",
+    "language": "pt"
+  },
+  "ysaias": {
+    "groupId": "-5234884637",
+    "displayName": "Ysaias",
+    "language": "es"
+  }
+}

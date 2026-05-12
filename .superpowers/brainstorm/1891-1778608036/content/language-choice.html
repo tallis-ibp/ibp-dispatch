@@ -1,0 +1,85 @@
+<h2>Qual stack de linguagem usar?</h2>
+<p class="subtitle">Escolha a base técnica do sistema antes de mapear a arquitetura</p>
+
+<div class="options">
+  <div class="option" data-choice="a" onclick="toggleSelect(this)">
+    <div class="letter">A</div>
+    <div class="content">
+      <h3>TypeScript + Node.js <span style="background:#22c55e;color:white;font-size:11px;padding:2px 7px;border-radius:10px;margin-left:8px;">Recomendado</span></h3>
+      <p>Migrar o código existente para TypeScript. Mantém Node.js, adiciona tipagem estática.</p>
+      <div class="pros-cons" style="margin-top:12px;">
+        <div class="pros">
+          <h4>Prós</h4>
+          <ul>
+            <li>Pega erros em tempo de compilação, não em produção</li>
+            <li>Melhor autocomplete e IntelliSense no VSCode</li>
+            <li>Padrão da indústria para Node.js sério</li>
+            <li>Mantém todo o código existente (só adiciona tipos)</li>
+            <li>Zod para validação de inputs (segurança)</li>
+          </ul>
+        </div>
+        <div class="cons">
+          <h4>Contras</h4>
+          <ul>
+            <li>Migração leva ~1 dia de trabalho</li>
+            <li>Lucas precisaria aprender um pouco de TS para editar</li>
+          </ul>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="option" data-choice="b" onclick="toggleSelect(this)">
+    <div class="letter">B</div>
+    <div class="content">
+      <h3>JavaScript puro (manter como está)</h3>
+      <p>Continuar com Node.js + ESModules. Sem migração necessária.</p>
+      <div class="pros-cons" style="margin-top:12px;">
+        <div class="pros">
+          <h4>Prós</h4>
+          <ul>
+            <li>Sem custo de migração</li>
+            <li>Mais simples para quem não programou antes</li>
+            <li>Funciona hoje, funciona amanhã</li>
+          </ul>
+        </div>
+        <div class="cons">
+          <h4>Contras</h4>
+          <ul>
+            <li>Erros de tipo só aparecem em runtime (quando já quebrou)</li>
+            <li>Sem validação automática de dados de entrada</li>
+            <li>Mais difícil de manter à medida que o sistema cresce</li>
+            <li>Maior risco de security bugs silenciosos</li>
+          </ul>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="option" data-choice="c" onclick="toggleSelect(this)">
+    <div class="letter">C</div>
+    <div class="content">
+      <h3>Reescrever em Python</h3>
+      <p>FastAPI no backend, python-telegram-bot, Pydantic para validação.</p>
+      <div class="pros-cons" style="margin-top:12px;">
+        <div class="pros">
+          <h4>Prós</h4>
+          <ul>
+            <li>Excelente para AI/ML integrations</li>
+            <li>Pydantic = validação + tipos em um só lugar</li>
+            <li>Fácil de ler para não-programadores</li>
+          </ul>
+        </div>
+        <div class="cons">
+          <h4>Contras</h4>
+          <ul>
+            <li>Reescrever TUDO do zero (semanas de trabalho)</li>
+            <li>Dashboard frontend ainda seria JS/HTML de qualquer forma</li>
+            <li>Perde todo o progresso feito</li>
+            <li>Não vale a pena dado o que já existe</li>
+          </ul>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
