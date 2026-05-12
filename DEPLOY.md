@@ -1,6 +1,6 @@
 # IBP Dispatch — Deployment Guide (Railway)
 
-This guide is for whoever is deploying this project. Lucas will send you the actual secret values separately.
+This guide is for deploying the TypeScript build of the IBP Crew Dispatch System on Railway.
 
 ---
 
@@ -26,23 +26,29 @@ cd schedule-logistics
 
 1. In Railway, open the service → **Settings → Volumes**
 2. Add a volume mounted at: `/app/data`
-3. This stores briefs, logistics plans, flags, and crew group config
+3. This stores the SQLite database (`ibp.db`) and all schedule caches
 
 ---
 
 ## 4. Set Environment Variables
 
-In Railway → **Variables**, add each of these (Lucas will send you the real values):
+In Railway → **Variables**, add each of these:
 
-| Variable | What it is |
-|---|---|
-| `TELEGRAM_BOT_TOKEN` | Telegram bot token from @BotFather |
-| `TELEGRAM_WEBHOOK_SECRET` | `ibp_dispatch_2026` (use this exactly) |
-| `MONDAY_API_KEY` | Monday.com API key |
-| `ANTHROPIC_API_KEY` | Anthropic API key (for AI chat assistant) |
-| `SCHEDULE_SHEET_ID` | Google Sheet ID for the schedule |
-| `SCHEDULE_YEAR` | `2026` |
-| `PORT` | `3002` |
+| Variable | Required | What it is |
+|---|---|---|
+| `TELEGRAM_BOT_TOKEN` | ✅ | Telegram bot token from @BotFather |
+| `TELEGRAM_SCHEDULER_CHAT_ID` | ✅ | Scheduler's personal Telegram chat ID |
+| `MONDAY_API_KEY` | ✅ | Monday.com API key |
+| `ANTHROPIC_API_KEY` | ✅ | Anthropic API key (Claude scheduling agent) |
+| `JWT_SECRET` | ✅ | Random 40+ character string (keep secret) |
+| `PUBLIC_URL` | ✅ | e.g. `https://ibp-dispatch.up.railway.app` |
+| `TELEGRAM_WEBHOOK_SECRET` | recommended | Random string for webhook validation |
+| `MONDAY_BOARD_ID` | optional | Default: `2214820863` |
+| `SCHEDULE_SHEET_ID` | optional | Google Sheet ID for the schedule |
+| `PORT` | optional | Default: `3002` |
+| `NODE_ENV` | optional | Set to `production` |
+
+**The server will refuse to start if any required variable is missing.** Check Railway logs if it won't boot.
 
 ---
 
@@ -51,28 +57,54 @@ In Railway → **Variables**, add each of these (Lucas will send you the real va
 In Railway → **Settings → Deploy**, set the start command to:
 
 ```
-node src/server/index.mjs
+npm run build && npm start
 ```
+
+This compiles TypeScript to `dist/` then runs the compiled server.
 
 ---
 
 ## 6. Register the Telegram Webhook (one-time, after deploy)
 
-Once the app is live and Railway gives you a URL (e.g. `https://ibp-dispatch.up.railway.app`), run this **once** from your local machine:
+Once the app is live and Railway gives you a URL, run this **once** from your local machine:
 
 ```bash
-node --env-file=.env src/scripts/setupWebhook.mjs https://ibp-dispatch.up.railway.app
+PUBLIC_URL=https://ibp-dispatch.up.railway.app \
+TELEGRAM_BOT_TOKEN=<your_token> \
+TELEGRAM_WEBHOOK_SECRET=<your_secret> \
+npm run setup:webhook
 ```
 
-This tells Telegram where to send messages. You only need to do this once (or if the URL changes).
+Expected output:
+```
+✅ Webhook registered: https://ibp-dispatch.up.railway.app/webhook/telegram
+   Pending updates: 0
+```
 
 ---
 
-## 7. Verify it's working
+## 7. End-to-End Smoke Test
 
-- Open `https://your-railway-url.up.railway.app/dashboard` — the dashboard should load
-- Send `/myid` in any of the Telegram crew groups — the bot should reply with the chat ID
-- Check Railway logs for `[poller]` or `[webhook]` messages
+After deploy, verify the full flow:
+
+- [ ] Open `https://<your-domain>` → login screen appears
+- [ ] Tap "Login via Telegram" → bot sends a secure link → tap it → dashboard loads
+- [ ] `POST /api/generate` with `{ "date": "YYYY-MM-DD" }` → brief generated
+- [ ] `POST /api/proposals` with `{ "date": "YYYY-MM-DD" }` → AI proposals appear in dashboard
+- [ ] Approve a proposal in dashboard → crew Telegram group receives dispatch with ✅/⚠️ buttons
+- [ ] Tap ✅ Job Done in crew group → Monday.com item gets an update
+- [ ] Generate a viewer link from Settings → open on phone → read-only dashboard, no edit controls
+
+---
+
+## 8. Daily Cron Schedule (automatic)
+
+| Time | Action |
+|---|---|
+| 5:00 AM | Fetch Google Sheet schedule |
+| 5:30 AM | Sync Monday.com jobs to SQLite |
+| 6:00 AM | Generate AI proposals + send Telegram summary to scheduler |
+| Every 30 min | Monday.com incremental sync |
 
 ---
 
@@ -80,4 +112,6 @@ This tells Telegram where to send messages. You only need to do this once (or if
 
 - **Never commit the `.env` file** — it contains secrets
 - The `data/` folder on the Volume persists between deploys — don't wipe it
-- If Telegram stops responding, re-run the `setupWebhook.mjs` script with the current Railway URL
+- SQLite database lives at `/app/data/ibp.db` (or `DB_PATH` env var)
+- If Telegram webhook stops working, re-run `npm run setup:webhook` with current Railway URL
+- For local development: omit `PUBLIC_URL` → bot runs in long-polling mode automatically
