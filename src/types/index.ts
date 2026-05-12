@@ -1,3 +1,5 @@
+import type { IncomingMessage } from 'http';
+
 export type Role = 'scheduler' | 'viewer';
 
 export interface CrewProfile {
@@ -103,4 +105,9 @@ export interface ScheduleRecord {
   jobNumbers: string[];
   clientTypes: string[];
   inferredJobTypes: string[];
+}
+
+export interface AuthenticatedRequest extends IncomingMessage {
+  role: Role;
+  sessionToken: string;
 }
