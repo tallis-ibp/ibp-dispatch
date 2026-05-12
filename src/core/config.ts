@@ -1,5 +1,30 @@
 import type { CrewProfile } from '../types/index.js';
 
+export const DEFAULT_SHEET_ID = '1516H1ZQImJ4arKe6wYeFMqFw6V_-697QM-HiBs7qOY8';
+export const DEFAULT_YEAR = 2026;
+
+/** Column descriptor for parsing the Google Sheet CSV layout. */
+export interface DayColumnDescriptor {
+  dayName: string;
+  shortDay: string;
+  dayIndex: number;
+  /** 0-based CSV column index for the assignment cell */
+  colIndex: number;
+  /** 0-based CSV column index for the crew name cell */
+  crewColIndex: number;
+}
+
+/** All seven day columns as they appear in the schedule CSV. */
+export const DAY_COLUMN_LIST: DayColumnDescriptor[] = [
+  { dayName: 'Monday',    shortDay: 'Mon', dayIndex: 0, colIndex: 1, crewColIndex: 0 },
+  { dayName: 'Tuesday',   shortDay: 'Tue', dayIndex: 1, colIndex: 2, crewColIndex: 0 },
+  { dayName: 'Wednesday', shortDay: 'Wed', dayIndex: 2, colIndex: 3, crewColIndex: 0 },
+  { dayName: 'Thursday',  shortDay: 'Thu', dayIndex: 3, colIndex: 5, crewColIndex: 4 },
+  { dayName: 'Friday',    shortDay: 'Fri', dayIndex: 4, colIndex: 6, crewColIndex: 4 },
+  { dayName: 'Saturday',  shortDay: 'Sat', dayIndex: 5, colIndex: 7, crewColIndex: 4 },
+  { dayName: 'Sunday',    shortDay: 'Sun', dayIndex: 6, colIndex: 8, crewColIndex: 4 },
+];
+
 export const CREW_PROFILES: Record<string, CrewProfile> = {
   santiago: {
     key: 'santiago',
@@ -211,3 +236,81 @@ export function inferClientTypeFromJobNumber(jobNumber: string | number | null |
 }
 
 export const WAREHOUSE_ADDRESS = '5224 Goddard Ave, Orlando FL 32822';
+
+// ---------------------------------------------------------------------------
+// Crew name → profile lookup (mirrors src/config.mjs getCrewProfile logic)
+// ---------------------------------------------------------------------------
+
+interface CrewNameEntry {
+  key: string;
+  names: string[];
+  category: string;
+}
+
+const CREW_NAME_MAP: CrewNameEntry[] = [
+  { key: 'santiago',         names: ['SANTIAGO (PAVERS)', 'SANTIAGO'],                                               category: 'deck crew' },
+  { key: 'penna',            names: ['PENNA (PAVERS, DETAILED JOBS)', 'PENNA'],                                       category: 'multi-skill subcontractor' },
+  { key: 'waype',            names: ['WAYPE (PAVERS)', 'WAYPE (PAVERS) (TRABAJOS PEQUENOS)', 'WAYPE'],               category: 'production deck crew' },
+  { key: 'ludwing_tarcizio', names: ['LUDWING / TARCIZIO'],                                                           category: 'service, sealer, warranty' },
+  { key: 'mario_wilcher',    names: ['MARIO / WILCHER'],                                                              category: 'repair and sealer team' },
+  { key: 'felipe_miliati',   names: ['FELIPE MILIATI'],                                                               category: 'solo repair crew' },
+  { key: 'others',           names: ['OTHERS'],                                                                       category: 'irregular crew' },
+  { key: 'ysaias',           names: ['YSAIAS (PAVER DETAILED JOBS)', 'ISAÍAS', 'ISAIAS', 'YSAIAS'],                  category: 'paver detail crew' },
+  { key: 'wanderson',        names: ['WANDERSON (PAVER DETAILED JOBS)', 'WANDERSON'],                                 category: 'paver detail crew' },
+  { key: 'marcelao',         names: ['MARCELAO (PAVERS BIG JOBS)', 'MARCELAO'],                                       category: 'large paver crew' },
+  { key: 'fausto',           names: ['FAUSTO (COPING)', 'FAUSTO'],                                                    category: 'coping crew' },
+  { key: 'toby',             names: ['TOBY (COPING AND TILE)', 'TOBY'],                                               category: 'coping and tile crew' },
+  { key: 'bruno_pacheco',    names: ['BRUNO PACHECO'],                                                                category: 'tile/service' },
+  { key: 'mauro_tile',       names: ['MAURO TILE CREW (PER JOB OR DAY)', 'MAURO TILE CREW'],                         category: 'tile crew' },
+  { key: 'marcelo_master_care', names: ['MARCELO MASTER CARE'],                                                       category: 'service/repair' },
+  { key: 'gervin_julio',     names: ['GERVIN / JULIO'],                                                               category: 'service/repair' },
+  { key: 'gilberto',         names: ['GILBERTO'],                                                                     category: 'other/specialty' },
+];
+
+const PROFILE_BY_NORMALIZED_NAME = new Map<string, CrewNameEntry>();
+for (const entry of CREW_NAME_MAP) {
+  for (const name of entry.names) {
+    PROFILE_BY_NORMALIZED_NAME.set(normalizeName(name), entry);
+  }
+}
+
+export interface ResolvedCrewProfile {
+  key: string;
+  category: string;
+  reliability: 'high' | 'medium' | 'low';
+}
+
+export function getCrewProfile(crewName: string): ResolvedCrewProfile {
+  const normalized = normalizeName(crewName);
+
+  // Exact match
+  const exact = PROFILE_BY_NORMALIZED_NAME.get(normalized);
+  if (exact) {
+    return {
+      key: exact.key,
+      category: exact.category,
+      reliability: (CREW_PROFILES[exact.key]?.reliability ?? 'medium') as 'high' | 'medium' | 'low',
+    };
+  }
+
+  // Partial match
+  for (const entry of CREW_NAME_MAP) {
+    if (
+      entry.names.some(
+        (n) => normalized.includes(normalizeName(n)) || normalizeName(n).includes(normalized),
+      )
+    ) {
+      return {
+        key: entry.key,
+        category: entry.category,
+        reliability: (CREW_PROFILES[entry.key]?.reliability ?? 'medium') as 'high' | 'medium' | 'low',
+      };
+    }
+  }
+
+  return {
+    key: 'unknown',
+    category: 'unknown',
+    reliability: 'medium',
+  };
+}
