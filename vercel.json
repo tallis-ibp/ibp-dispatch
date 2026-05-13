@@ -1,0 +1,12 @@
+{
+  "version": 2,
+  "rewrites": [
+    { "source": "/(.*)", "destination": "/api/index" }
+  ],
+  "crons": [
+    { "path": "/api/cron/fetch-schedule", "schedule": "0 5 * * *" },
+    { "path": "/api/cron/sync-monday",    "schedule": "30 5 * * *" },
+    { "path": "/api/cron/morning",        "schedule": "0 6 * * *" },
+    { "path": "/api/cron/sync-monday",    "schedule": "*/30 * * * *" }
+  ]
+}
