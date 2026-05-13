@@ -1,5 +1,5 @@
 import Anthropic from '@anthropic-ai/sdk';
-import { getDb } from '../db/client.js';
+import { getSql } from '../db/client.js';
 import { CREW_PROFILES } from '../core/config.js';
 import type { Job, CrewProfile, ScheduleProposal } from '../types/index.js';
 import { randomUUID } from 'crypto';
@@ -42,22 +42,22 @@ Only return the JSON array. No explanation outside it.`;
 }
 
 export async function generateProposals(date: string): Promise<ScheduleProposal[]> {
-  const db = getDb();
+  const sql = getSql();
   const apiKey = process.env.ANTHROPIC_API_KEY;
   if (!apiKey) throw new Error('ANTHROPIC_API_KEY not set');
 
-  const jobRows = db
-    .prepare("SELECT * FROM jobs WHERE status IN ('NEED_TO_SCHEDULE', 'SCHEDULED_JOB') AND material_ready = 1")
-    .all() as Array<Record<string, unknown>>;
+  const jobRows = await sql<Array<Record<string, unknown>>>`
+    SELECT * FROM jobs WHERE status IN ('NEED_TO_SCHEDULE', 'SCHEDULED_JOB') AND material_ready = 1
+  `;
 
   const crews = Object.values(CREW_PROFILES);
 
   const prompt = buildSchedulingPrompt(
     jobRows.map((j) => ({
       ...j,
-      equipmentNeeded: JSON.parse(j.equipment_needed as string ?? '[]'),
-      trailerNeeded: JSON.parse(j.trailer_needed as string ?? '[]'),
-      materialReady: Boolean(j.material_ready),
+      equipmentNeeded: JSON.parse(j['equipment_needed'] as string ?? '[]'),
+      trailerNeeded: JSON.parse(j['trailer_needed'] as string ?? '[]'),
+      materialReady: Boolean(j['material_ready']),
     })) as Job[],
     crews,
     date
@@ -98,13 +98,18 @@ export async function generateProposals(date: string): Promise<ScheduleProposal[
     status: 'pending' as const,
   }));
 
-  const insert = db.prepare(`
-    INSERT OR REPLACE INTO schedule_proposals
-    (id, date, generated_at, crew_key, job_number, job_name, reasoning, confidence, status)
-    VALUES (@id, @date, @generatedAt, @crewKey, @jobNumber, @jobName, @reasoning, @confidence, @status)
-  `);
-
-  db.transaction(() => proposals.forEach((p) => insert.run(p)))();
+  await sql.begin(async (tx) => {
+    for (const p of proposals) {
+      await tx`
+        INSERT INTO schedule_proposals (id, date, generated_at, crew_key, job_number, job_name, reasoning, confidence, status)
+        VALUES (${p.id}, ${p.date}, ${p.generatedAt}, ${p.crewKey}, ${p.jobNumber}, ${p.jobName}, ${p.reasoning}, ${p.confidence}, ${p.status})
+        ON CONFLICT (id) DO UPDATE SET
+          reasoning = EXCLUDED.reasoning,
+          confidence = EXCLUDED.confidence,
+          status = EXCLUDED.status
+      `;
+    }
+  });
 
   return proposals;
 }

@@ -1,11 +1,11 @@
 /**
  * generateBriefs.ts
  * Reads schedule-records.json + jobs table for a given date,
- * writes brief header + brief_jobs rows to SQLite.
+ * writes brief header + brief_jobs rows to PostgreSQL.
  * Mirrors the business logic of src/generateBriefs.mjs.
  */
 
-import { getDb } from '../db/client.js';
+import { getSql } from '../db/client.js';
 import { readFileSync, existsSync } from 'fs';
 import { randomUUID } from 'crypto';
 import type { ScheduleRecord } from '../types/index.js';
@@ -123,7 +123,7 @@ function buildDispatchText(opts: {
 // Main export
 // ---------------------------------------------------------------------------
 export async function generateBriefs(date: string): Promise<void> {
-  const db = getDb();
+  const sql = getSql();
 
   // Read schedule records from JSON (transition: later tasks move this to DB)
   const scheduleRaw = existsSync('data/schedule-records.json')
@@ -136,22 +136,23 @@ export async function generateBriefs(date: string): Promise<void> {
 
   const dayRecords = allRecords.filter((r) => r.date === date && r.status === 'assigned');
 
-  // Read crew language preferences from SQLite (seeded by seedCrews)
-  const crewRows = db.prepare('SELECT key, language FROM crews').all() as Array<{ key: string; language: string }>;
+  // Read crew language preferences from PostgreSQL (seeded by seedCrews)
+  const crewRows = await sql<Array<{ key: string; language: string }>>`SELECT key, language FROM crews`;
   const crewLanguage = new Map(crewRows.map((r) => [r.key, r.language]));
 
-  // Read jobs from SQLite, indexed by normalised job number
-  const jobRows = db.prepare('SELECT * FROM jobs').all() as DbJob[];
+  // Read jobs from PostgreSQL, indexed by normalised job number
+  const jobRows = await sql<DbJob[]>`SELECT * FROM jobs`;
   const jobByNum = new Map(jobRows.map((j) => [normalizeNum(j.job_number), j]));
 
   // Insert/replace brief header
-  db.prepare(`
-    INSERT OR REPLACE INTO briefs (date, generated_at, approved, approved_at, approved_by)
-    VALUES (?, ?, 0, NULL, NULL)
-  `).run(date, new Date().toISOString());
+  await sql`
+    INSERT INTO briefs (date, generated_at, approved, approved_at, approved_by)
+    VALUES (${date}, ${new Date().toISOString()}, 0, NULL, NULL)
+    ON CONFLICT (date) DO UPDATE SET generated_at = EXCLUDED.generated_at, approved = 0
+  `;
 
   // Clear existing brief_jobs for this date so re-runs are idempotent
-  db.prepare('DELETE FROM brief_jobs WHERE brief_date = ?').run(date);
+  await sql`DELETE FROM brief_jobs WHERE brief_date = ${date}`;
 
   // Group records by crewKey (mirrors generateBriefs.mjs grouping)
   const byCrewKey = new Map<string, ScheduleRecord[]>();
@@ -161,21 +162,9 @@ export async function generateBriefs(date: string): Promise<void> {
     byCrewKey.get(key)!.push(rec);
   }
 
-  const insertJob = db.prepare(`
-    INSERT INTO brief_jobs (
-      id, brief_date, crew_key, job_number, job_name, address, gate_code,
-      supervisor, trailer_type, tasks, materials, next_stop, risk_flags,
-      dispatch_text, check_in_status, last_check_in, approved, sent_at, annotations
-    ) VALUES (
-      @id, @briefDate, @crewKey, @jobNumber, @jobName, @address, @gateCode,
-      @supervisor, @trailerType, @tasks, @materials, @nextStop, @riskFlags,
-      @dispatchText, NULL, NULL, 0, NULL, NULL
-    )
-  `);
-
   let totalJobs = 0;
 
-  db.transaction(() => {
+  await sql.begin(async (tx) => {
     for (const [crewKey, recs] of byCrewKey) {
       const lang = crewLanguage.get(crewKey) ?? 'en';
 
@@ -208,28 +197,25 @@ export async function generateBriefs(date: string): Promise<void> {
             language: lang,
           });
 
-          insertJob.run({
-            id: randomUUID(),
-            briefDate: date,
-            crewKey,
-            jobNumber: jobNum ?? null,
-            jobName,
-            address: address || null,
-            gateCode: gateCode || null,
-            supervisor: null,
-            trailerType: trailer || null,
-            tasks: JSON.stringify([rec.rawAssignment]),
-            materials: JSON.stringify(materials),
-            nextStop: 'Warehouse',
-            riskFlags: JSON.stringify(riskFlags),
-            dispatchText,
-          });
+          await tx`
+            INSERT INTO brief_jobs (
+              id, brief_date, crew_key, job_number, job_name, address, gate_code,
+              supervisor, trailer_type, tasks, materials, next_stop, risk_flags,
+              dispatch_text, check_in_status, last_check_in, approved, sent_at, annotations
+            ) VALUES (
+              ${randomUUID()}, ${date}, ${crewKey}, ${jobNum ?? null}, ${jobName},
+              ${address || null}, ${gateCode || null}, ${null}, ${trailer || null},
+              ${JSON.stringify([rec.rawAssignment])}, ${JSON.stringify(materials)},
+              ${'Warehouse'}, ${JSON.stringify(riskFlags)}, ${dispatchText},
+              ${null}, ${null}, ${0}, ${null}, ${null}
+            )
+          `;
 
           totalJobs++;
         }
       }
     }
-  })();
+  });
 
   console.log(
     `[generateBriefs] Generated brief for ${date} with ${byCrewKey.size} crews, ${totalJobs} job entries`,

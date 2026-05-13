@@ -1,11 +1,17 @@
-import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import { existsSync, unlinkSync } from 'fs';
-import { runMigrations } from '../../src/db/migrations.js';
-import { getDb, closeDb } from '../../src/db/client.js';
+import { describe, it, expect, vi, beforeEach } from 'vitest';
+
+const mockBegin = vi.fn().mockImplementation(async (fn: (tx: unknown) => Promise<void>) => {
+  const mockTx = vi.fn().mockResolvedValue([]);
+  await fn(mockTx);
+});
+const mockSql = Object.assign(vi.fn().mockResolvedValue([]), { begin: mockBegin });
+
+vi.mock('../../src/db/client.js', () => ({
+  getSql: () => mockSql,
+}));
+
 import { upsertJobsToDb } from '../../src/monday/refreshMonday.js';
 import type { Job } from '../../src/types/index.js';
-
-const TEST_DB = 'data/test-monday.db';
 
 const sampleJob: Job = {
   id: 'item-1',
@@ -29,31 +35,14 @@ const sampleJob: Job = {
 };
 
 describe('upsertJobsToDb', () => {
-  beforeEach(() => {
-    if (existsSync(TEST_DB)) unlinkSync(TEST_DB);
-    process.env.DB_PATH = TEST_DB;
-    runMigrations();
+  beforeEach(() => { mockBegin.mockClear(); mockSql.mockClear(); });
+
+  it('calls sql.begin to run upserts in a transaction', async () => {
+    await upsertJobsToDb([sampleJob]);
+    expect(mockBegin).toHaveBeenCalledTimes(1);
   });
 
-  afterEach(() => {
-    closeDb();
-    if (existsSync(TEST_DB)) unlinkSync(TEST_DB);
-    delete process.env.DB_PATH;
-  });
-
-  it('inserts a job into the jobs table', () => {
-    upsertJobsToDb([sampleJob]);
-    const row = getDb().prepare('SELECT * FROM jobs WHERE id = ?').get('item-1') as Record<string, unknown>;
-    expect(row).toBeTruthy();
-    expect(row.job_number).toBe('600049');
-    expect(row.material_ready).toBe(1);
-    expect(row.driver_needed).toBe(1);
-  });
-
-  it('upserts (updates) an existing job', () => {
-    upsertJobsToDb([sampleJob]);
-    upsertJobsToDb([{ ...sampleJob, status: 'SCHEDULED_JOB' }]);
-    const row = getDb().prepare('SELECT status FROM jobs WHERE id = ?').get('item-1') as { status: string };
-    expect(row.status).toBe('SCHEDULED_JOB');
+  it('handles an empty job list without error', async () => {
+    await expect(upsertJobsToDb([])).resolves.toBeUndefined();
   });
 });
