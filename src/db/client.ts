@@ -1,23 +1,24 @@
-import Database from 'better-sqlite3';
-import { mkdirSync } from 'fs';
-import { resolve } from 'path';
+import postgres from 'postgres';
 
-let instance: Database.Database | null = null;
+let instance: ReturnType<typeof postgres> | null = null;
 
-export function getDb(): Database.Database {
+export function getSql(): ReturnType<typeof postgres> {
   if (!instance) {
-    const dbPath = resolve(process.env.DB_PATH ?? 'data/ibp.db');
-    mkdirSync(resolve(dbPath, '..'), { recursive: true });
-    instance = new Database(dbPath);
-    instance.pragma('journal_mode = WAL');
-    instance.pragma('foreign_keys = ON');
+    const url = process.env.DATABASE_URL;
+    if (!url) throw new Error('DATABASE_URL not set');
+    instance = postgres(url, {
+      max: 3,
+      idle_timeout: 20,
+      connect_timeout: 10,
+      prepare: false, // required for Supabase PgBouncer transaction mode
+    });
   }
   return instance;
 }
 
-export function closeDb(): void {
+export async function closeSql(): Promise<void> {
   if (instance) {
-    instance.close();
+    await instance.end();
     instance = null;
   }
 }

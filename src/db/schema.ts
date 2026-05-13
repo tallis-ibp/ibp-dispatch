@@ -121,7 +121,7 @@ CREATE TABLE IF NOT EXISTS schedule_proposals (
 );
 
 CREATE TABLE IF NOT EXISTS learned_phrases (
-  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  id SERIAL PRIMARY KEY,
   phrase TEXT NOT NULL,
   intent TEXT NOT NULL,
   learned_at TEXT NOT NULL
