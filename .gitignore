@@ -10,6 +10,17 @@
 node_modules/
 npm-debug.log*
 
+# Build output
+dist/
+
+# SQLite database files (local only — production uses Supabase)
+data/*.db
+data/*.db-shm
+data/*.db-wal
+
+# Tool-specific
+.superpowers/
+
 # Generated data (daily — don't version)
 data/raw/
 data/schedule-records.json
