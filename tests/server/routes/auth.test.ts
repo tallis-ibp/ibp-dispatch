@@ -1,22 +1,20 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { generateNonce, validateNonce } from '../../../src/server/routes/auth.js';
 
-const mockRun = vi.fn().mockReturnValue({ changes: 1 });
-const mockGet = vi.fn();
+const mockSql = Object.assign(
+  vi.fn().mockResolvedValue([]),
+  { begin: vi.fn() }
+);
 
 vi.mock('../../../src/db/client.js', () => ({
-  getDb: () => ({
-    prepare: vi.fn().mockReturnValue({
-      run: mockRun,
-      get: mockGet,
-    }),
-  }),
+  getSql: () => mockSql,
 }));
 
 beforeEach(() => {
-  mockRun.mockReset();
-  mockGet.mockReset();
+  mockSql.mockClear();
+  mockSql.mockResolvedValue([]);
 });
+
+import { generateNonce, validateNonce } from '../../../src/server/routes/auth.js';
 
 describe('generateNonce', () => {
   it('returns a non-empty string', () => {
@@ -31,13 +29,13 @@ describe('generateNonce', () => {
 });
 
 describe('validateNonce', () => {
-  it('returns true when UPDATE affects 1 row (valid nonce)', () => {
-    mockRun.mockReturnValue({ changes: 1 });
-    expect(validateNonce('abc123')).toBe(true);
+  it('returns true when UPDATE affects 1 row (valid nonce)', async () => {
+    mockSql.mockResolvedValueOnce({ count: 1 });
+    expect(await validateNonce('abc123')).toBe(true);
   });
 
-  it('returns false when UPDATE affects 0 rows (invalid/used/expired nonce)', () => {
-    mockRun.mockReturnValue({ changes: 0 });
-    expect(validateNonce('expired-nonce')).toBe(false);
+  it('returns false when UPDATE affects 0 rows (invalid/used/expired nonce)', async () => {
+    mockSql.mockResolvedValueOnce({ count: 0 });
+    expect(await validateNonce('expired-nonce')).toBe(false);
   });
 });
