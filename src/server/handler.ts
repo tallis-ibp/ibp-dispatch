@@ -14,7 +14,7 @@ import { handleGetProposals, handleGenerateProposals, handleUpdateProposal } fro
 import { validateSession, extractTokenFromRequest } from '../middleware/auth.js';
 import { generalLimiter, loginLimiter } from '../middleware/rateLimit.js';
 
-const DASHBOARD_DIR = resolve('dashboard');
+const DASHBOARD_DIR = resolve('public');
 const WEBHOOK_SECRET = process.env.TELEGRAM_WEBHOOK_SECRET ?? '';
 
 function getIp(req: IncomingMessage): string {

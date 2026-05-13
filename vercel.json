@@ -2,7 +2,8 @@
   "version": 2,
   "outputDirectory": "public",
   "rewrites": [
-    { "source": "/(.*)", "destination": "/api/index" }
+    { "source": "/api/:path*", "destination": "/api/index" },
+    { "source": "/webhook/:path*", "destination": "/api/index" }
   ],
   "crons": [
     { "path": "/api/cron/fetch-schedule", "schedule": "0 5 * * *" },
