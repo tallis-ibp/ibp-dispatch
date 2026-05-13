@@ -3,7 +3,7 @@ import { validateEnv } from '../../src/server/validateEnv.js';
 
 const REQUIRED = [
   'TELEGRAM_BOT_TOKEN', 'TELEGRAM_SCHEDULER_CHAT_ID',
-  'MONDAY_API_KEY', 'ANTHROPIC_API_KEY', 'JWT_SECRET', 'PUBLIC_URL'
+  'MONDAY_API_KEY', 'ANTHROPIC_API_KEY', 'JWT_SECRET', 'PUBLIC_URL', 'DATABASE_URL'
 ];
 
 describe('validateEnv', () => {

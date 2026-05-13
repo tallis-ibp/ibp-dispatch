@@ -5,6 +5,7 @@ const REQUIRED_ENV_VARS = [
   'ANTHROPIC_API_KEY',
   'JWT_SECRET',
   'PUBLIC_URL',
+  'DATABASE_URL',
 ] as const;
 
 export function validateEnv(): void {
