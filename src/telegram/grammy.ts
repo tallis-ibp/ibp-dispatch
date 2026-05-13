@@ -1,5 +1,5 @@
 import { Bot } from 'grammy';
-import { validateNonce } from '../server/routes/auth.js';
+import { handleCallbackQuery, handleTextMessage } from './messageHandler.js';
 
 let botInstance: Bot | null = null;
 
@@ -8,21 +8,16 @@ export function getBot(): Bot {
     const token = process.env.TELEGRAM_BOT_TOKEN;
     if (!token) throw new Error('TELEGRAM_BOT_TOKEN not set');
     botInstance = new Bot(token);
-  }
-  return botInstance;
-}
 
-export async function startBot(): Promise<void> {
-  const bot = getBot();
-  const publicUrl = process.env.PUBLIC_URL;
+    const publicUrl = process.env.PUBLIC_URL;
+    const schedulerChatId = process.env.TELEGRAM_SCHEDULER_CHAT_ID;
 
-  bot.command('start', async (ctx) => {
-    const payload = ctx.match;
-    if (payload?.startsWith('login_')) {
+    botInstance.command('start', async (ctx) => {
+      const payload = ctx.match;
+      if (!payload?.startsWith('login_')) return;
+
       const nonce = payload.slice(6);
-      const schedulerChatId = process.env.TELEGRAM_SCHEDULER_CHAT_ID;
       if (!schedulerChatId) {
-        console.error('[telegram] TELEGRAM_SCHEDULER_CHAT_ID not configured');
         await ctx.reply('Login is not configured. Contact the administrator.');
         return;
       }
@@ -31,16 +26,22 @@ export async function startBot(): Promise<void> {
         return;
       }
       const loginUrl = `${publicUrl}/api/auth/exchange?nonce=${nonce}`;
-      await ctx.reply(
-        `Tap the button below to log in. This link expires in 10 minutes.`,
-        {
-          reply_markup: {
-            inline_keyboard: [[{ text: '🔐 Log In to Dashboard', url: loginUrl }]],
-          },
-        }
-      );
-    }
-  });
+      await ctx.reply('Tap the button below to log in. This link expires in 10 minutes.', {
+        reply_markup: {
+          inline_keyboard: [[{ text: '🔐 Log In to Dashboard', url: loginUrl }]],
+        },
+      });
+    });
+
+    botInstance.on('callback_query', handleCallbackQuery);
+    botInstance.on('message', handleTextMessage);
+  }
+  return botInstance;
+}
+
+export async function startBot(): Promise<void> {
+  const bot = getBot();
+  const publicUrl = process.env.PUBLIC_URL;
 
   if (publicUrl) {
     await bot.api.setWebhook(`${publicUrl}/webhook/telegram`, {

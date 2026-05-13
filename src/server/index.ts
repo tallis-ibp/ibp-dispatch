@@ -2,8 +2,7 @@ import { createServer } from 'http';
 import { validateEnv } from './validateEnv.js';
 import { runMigrations } from '../db/migrations.js';
 import { seedCrews } from '../db/seedCrews.js';
-import { startBot, getBot } from '../telegram/grammy.js';
-import { handleCallbackQuery, handleTextMessage } from '../telegram/messageHandler.js';
+import { startBot } from '../telegram/grammy.js';
 import { sendMorningSummary } from '../telegram/schedulerBot.js';
 import { refreshMonday } from '../monday/refreshMonday.js';
 import { fetchSchedule } from '../core/fetchSchedule.js';
@@ -41,10 +40,6 @@ async function main(): Promise<void> {
   validateEnv();
   await runMigrations();
   await seedCrews();
-
-  const bot = getBot();
-  bot.on('callback_query', handleCallbackQuery);
-  bot.on('message', handleTextMessage);
 
   await startBot();
   scheduleDailyJobs();
