@@ -1,5 +1,5 @@
 import { getBot } from './grammy.js';
-import { getDb } from '../db/client.js';
+import { getSql } from '../db/client.js';
 import { dispatchBriefToCrews } from './dispatcher.js';
 
 interface ProposalSummary {
@@ -48,15 +48,17 @@ export async function sendMorningSummary(date: string): Promise<void> {
   if (!schedulerChatId) throw new Error('TELEGRAM_SCHEDULER_CHAT_ID not set');
 
   const bot = getBot();
-  const db = getDb();
+  const sql = getSql();
 
-  const proposals = db
-    .prepare("SELECT crew_key, job_name, confidence FROM schedule_proposals WHERE date = ? AND status = 'pending'")
-    .all(date) as Array<{ crew_key: string; job_name: string; confidence: 'high' | 'medium' | 'low' }>;
+  const proposals = await sql<{ crew_key: string; job_name: string | null; confidence: string }[]>`
+    SELECT crew_key, job_name, confidence FROM schedule_proposals
+    WHERE date = ${date} AND status = 'pending'
+  `;
 
-  const flagCount = (
-    db.prepare("SELECT COUNT(*) as c FROM flags WHERE date = ? AND resolved = 0").get(date) as { c: number }
-  ).c;
+  const [{ c }] = await sql<[{ c: string }]>`
+    SELECT COUNT(*) AS c FROM flags WHERE date = ${date} AND resolved = 0
+  `;
+  const flagCount = parseInt(c, 10);
 
   const dateLabel = new Date(date + 'T12:00:00Z').toLocaleDateString('en-US', {
     weekday: 'long', month: 'long', day: 'numeric',
@@ -68,7 +70,7 @@ export async function sendMorningSummary(date: string): Promise<void> {
       crewKey: p.crew_key,
       jobName: p.job_name ?? 'TBD',
       jobType: 'Job',
-      confidence: p.confidence,
+      confidence: p.confidence as 'high' | 'medium' | 'low',
     })),
     flagCount
   );
@@ -80,16 +82,14 @@ export async function sendMorningSummary(date: string): Promise<void> {
 }
 
 export async function handleSchedulerCallback(callbackData: string, date: string): Promise<void> {
-  const db = getDb();
+  const sql = getSql();
   const bot = getBot();
   const schedulerChatId = process.env.TELEGRAM_SCHEDULER_CHAT_ID!;
 
   if (callbackData.startsWith('schedule_approve:')) {
-    db.prepare("UPDATE schedule_proposals SET status = 'approved' WHERE date = ?").run(date);
-    db.prepare('UPDATE briefs SET approved = 1, approved_at = ?, approved_by = ? WHERE date = ?').run(
-      new Date().toISOString(), 'telegram', date
-    );
-    db.prepare('UPDATE brief_jobs SET approved = 1 WHERE brief_date = ?').run(date);
+    await sql`UPDATE schedule_proposals SET status = 'approved' WHERE date = ${date}`;
+    await sql`UPDATE briefs SET approved = 1, approved_at = ${new Date().toISOString()}, approved_by = 'telegram' WHERE date = ${date}`;
+    await sql`UPDATE brief_jobs SET approved = 1 WHERE brief_date = ${date}`;
     await dispatchBriefToCrews(date);
     await bot.api.sendMessage(schedulerChatId, '✅ Schedule approved and dispatched to all crews.');
   }
@@ -100,9 +100,6 @@ export async function handleSchedulerCallback(callbackData: string, date: string
 
   if (callbackData.startsWith('schedule_dashboard:')) {
     const publicUrl = process.env.PUBLIC_URL;
-    await bot.api.sendMessage(
-      schedulerChatId,
-      `Open the dashboard to review:\n${publicUrl}/proposals?date=${date}`
-    );
+    await bot.api.sendMessage(schedulerChatId, `Open the dashboard to review:\n${publicUrl}/proposals?date=${date}`);
   }
 }

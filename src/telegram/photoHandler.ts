@@ -11,7 +11,7 @@
  */
 
 import type { Context } from 'grammy';
-import { getDb } from '../db/client.js';
+import { getSql } from '../db/client.js';
 import { uploadPhotoToMonday } from '../monday/uploadPhoto.js';
 import { addUpdate } from '../monday/addUpdate.js';
 import Anthropic from '@anthropic-ai/sdk';
@@ -73,7 +73,7 @@ export async function handlePhotoMessage(ctx: Context): Promise<void> {
   console.log(`[photo] Received from ${sender} in chat ${chatId} — file_id: ${best.file_id}`);
 
   // Identify which crew this chat belongs to and which job
-  const { crew, job } = identifyCrewAndJob(chatId, caption);
+  const { crew, job } = await identifyCrewAndJob(chatId, caption);
 
   // Download from Telegram via Grammy
   let photoBuffer: Buffer;
@@ -251,51 +251,33 @@ Respond in this exact JSON format:
 
 // ── Crew + job matching ───────────────────────────────────────────────────
 
-function identifyCrewAndJob(chatId: string, caption: string): CrewJobMatch {
-  let db;
-  try {
-    db = getDb();
-  } catch {
-    return { crew: null, job: null };
-  }
+async function identifyCrewAndJob(chatId: string, caption: string): Promise<CrewJobMatch> {
+  const sql = getSql();
 
-  // Find crew by Telegram group ID
-  const crew = db
-    .prepare('SELECT * FROM crews WHERE telegram_group_id = ?')
-    .get(chatId) as CrewRecord | undefined;
-
-  if (!crew) return { crew: crew ?? null, job: null };
+  const [crew] = await sql<CrewRecord[]>`SELECT * FROM crews WHERE telegram_group_id = ${chatId}`;
+  if (!crew) return { crew: null, job: null };
 
   const today = new Date().toISOString().slice(0, 10);
-
-  // Find job: try caption for #JOBNUM pattern first
   const numMatch = caption.match(/#(\d+)/);
   let job: JobRecord | null = null;
 
   if (numMatch) {
-    job =
-      (db
-        .prepare(
-          'SELECT * FROM brief_jobs WHERE brief_date = ? AND crew_key = ? AND job_number = ? AND approved = 1'
-        )
-        .get(today, crew.key, numMatch[1]) as JobRecord | undefined) ?? null;
+    const [found] = await sql<JobRecord[]>`
+      SELECT * FROM brief_jobs
+      WHERE brief_date = ${today} AND crew_key = ${crew.key} AND job_number = ${numMatch[1]} AND approved = 1
+    `;
+    job = found ?? null;
   }
 
   if (!job) {
-    // Fallback: get all jobs for this crew today
-    const jobs = db
-      .prepare(
-        'SELECT * FROM brief_jobs WHERE brief_date = ? AND crew_key = ? AND approved = 1'
-      )
-      .all(today, crew.key) as JobRecord[];
-
+    const jobs = await sql<JobRecord[]>`
+      SELECT * FROM brief_jobs WHERE brief_date = ${today} AND crew_key = ${crew.key} AND approved = 1
+    `;
     if (jobs.length === 1) {
-      job = jobs[0];
+      job = jobs[0] ?? null;
     } else if (jobs.length > 1) {
       job = jobs[0] ?? null;
-      console.warn(
-        `[photo] Ambiguous job for crew ${crew.key} — defaulting to first job #${job?.job_number}`
-      );
+      console.warn(`[photo] Ambiguous job for crew ${crew.key} — defaulting to first job #${job?.job_number}`);
     }
   }
 

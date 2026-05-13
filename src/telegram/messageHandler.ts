@@ -1,4 +1,4 @@
-import { getDb } from '../db/client.js';
+import { getSql } from '../db/client.js';
 import { addUpdate } from '../monday/addUpdate.js';
 import type { Context } from 'grammy';
 
@@ -12,16 +12,22 @@ export const INTENTS = {
 
 export type Intent = keyof typeof INTENTS;
 
-export function detectIntent(text: string): Intent | null {
+export function detectIntentFromText(text: string): Intent | null {
   for (const [intent, patterns] of Object.entries(INTENTS)) {
     if ((patterns as ReadonlyArray<RegExp>).some((p) => p.test(text))) return intent as Intent;
   }
-  // Check learned phrases from DB
+  return null;
+}
+
+export async function detectIntent(text: string): Promise<Intent | null> {
+  const fromText = detectIntentFromText(text);
+  if (fromText) return fromText;
+
   try {
-    const db = getDb();
-    const learned = db
-      .prepare('SELECT intent FROM learned_phrases WHERE ? LIKE phrase')
-      .get(text.toLowerCase()) as { intent: string } | undefined;
+    const sql = getSql();
+    const [learned] = await sql<{ intent: string }[]>`
+      SELECT intent FROM learned_phrases WHERE ${text.toLowerCase()} LIKE phrase
+    `;
     return (learned?.intent as Intent) ?? null;
   } catch {
     return null;
@@ -44,21 +50,13 @@ export async function handleCallbackQuery(ctx: Context): Promise<void> {
   if (!data) return;
 
   const [action, jobId] = data.split(':');
-  const db = getDb();
+  const sql = getSql();
 
   if (action === 'done') {
-    db.prepare('UPDATE brief_jobs SET check_in_status = ?, last_check_in = ? WHERE id = ?').run(
-      'done',
-      new Date().toISOString(),
-      jobId
-    );
-    const job = db.prepare('SELECT * FROM brief_jobs WHERE id = ?').get(jobId) as
-      | { job_number: string; job_name: string }
-      | undefined;
+    await sql`UPDATE brief_jobs SET check_in_status = 'done', last_check_in = ${new Date().toISOString()} WHERE id = ${jobId}`;
+    const [job] = await sql<{ job_number: string; job_name: string }[]>`SELECT job_number, job_name FROM brief_jobs WHERE id = ${jobId}`;
     if (job?.job_number) {
-      const mondayItem = db
-        .prepare('SELECT id FROM jobs WHERE job_number = ?')
-        .get(job.job_number) as { id: string } | undefined;
+      const [mondayItem] = await sql<{ id: string }[]>`SELECT id FROM jobs WHERE job_number = ${job.job_number}`;
       if (mondayItem) {
         await addUpdate(mondayItem.id, {
           senderName: 'Crew',
@@ -83,26 +81,26 @@ export async function handleTextMessage(ctx: Context): Promise<void> {
   const chatId = String(ctx.chat?.id);
   if (!text || !chatId) return;
 
-  const intent = detectIntent(text);
-  const db = getDb();
-  const crew = db
-    .prepare('SELECT key, display_name FROM crews WHERE telegram_group_id = ?')
-    .get(chatId) as { key: string; display_name: string } | undefined;
+  const intent = await detectIntent(text);
+  const sql = getSql();
+  const [crew] = await sql<{ key: string; display_name: string }[]>`
+    SELECT key, display_name FROM crews WHERE telegram_group_id = ${chatId}
+  `;
 
   if (!crew) return;
 
   if (!intent) {
-    db.prepare(`
+    await sql`
       INSERT INTO flags (id, date, timestamp, chat_id, crew_key, sender, text)
-      VALUES (?, ?, ?, ?, ?, ?, ?)
-    `).run(
-      `flag-${Date.now()}`,
-      new Date().toISOString().slice(0, 10),
-      new Date().toISOString(),
-      chatId,
-      crew.key,
-      ctx.message?.from?.first_name ?? 'Unknown',
-      text
-    );
+      VALUES (
+        ${'flag-' + Date.now()},
+        ${new Date().toISOString().slice(0, 10)},
+        ${new Date().toISOString()},
+        ${chatId},
+        ${crew.key},
+        ${ctx.message?.from?.first_name ?? 'Unknown'},
+        ${text}
+      )
+    `;
   }
 }
