@@ -1,13 +1,11 @@
 import jwt from 'jsonwebtoken';
 import type { SignOptions } from 'jsonwebtoken';
 import type { Role } from '../types/index.js';
-import { getDb } from '../db/client.js';
+import { getSql } from '../db/client.js';
 
 function getJwtSecret(): string {
   const secret = process.env.JWT_SECRET;
-  if (!secret) {
-    throw new Error('JWT_SECRET environment variable is not set');
-  }
+  if (!secret) throw new Error('JWT_SECRET environment variable is not set');
   return secret;
 }
 
@@ -43,22 +41,19 @@ export function extractTokenFromRequest(
   return null;
 }
 
-export function validateSession(token: string): TokenPayload | null {
+export async function validateSession(token: string): Promise<TokenPayload | null> {
   const payload = verifyToken(token);
   if (!payload) return null;
 
-  const db = getDb();
-  const session = db
-    .prepare('SELECT revoked, expires_at FROM sessions WHERE token = ?')
-    .get(payload.sessionToken) as { revoked: number; expires_at: string | null } | undefined;
+  const sql = getSql();
+  const [session] = await sql<{ revoked: number; expires_at: string | null }[]>`
+    SELECT revoked, expires_at FROM sessions WHERE token = ${payload.sessionToken}
+  `;
 
   if (!session || session.revoked) return null;
   if (session.expires_at && new Date(session.expires_at) < new Date()) return null;
 
-  db.prepare('UPDATE sessions SET last_used_at = ? WHERE token = ?').run(
-    new Date().toISOString(),
-    payload.sessionToken
-  );
+  await sql`UPDATE sessions SET last_used_at = ${new Date().toISOString()} WHERE token = ${payload.sessionToken}`;
 
   return payload;
 }
