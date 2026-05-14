@@ -11,6 +11,7 @@ import {
 } from './routes/auth.js';
 import { handleGetBrief, handleGenerateBrief, handleApproveBrief } from './routes/briefs.js';
 import { handleGetProposals, handleGenerateProposals, handleUpdateProposal } from './routes/proposals.js';
+import { refreshMonday } from '../monday/refreshMonday.js';
 import { validateSession, extractTokenFromRequest } from '../middleware/auth.js';
 import { generalLimiter, loginLimiter } from '../middleware/rateLimit.js';
 
@@ -114,6 +115,13 @@ export async function requestHandler(req: IncomingMessage, res: ServerResponse):
     // Protected API routes
     if (path.startsWith('/api/')) {
       if (!(await requireAuth(req, res))) return;
+
+      if (path === '/api/sync' && req.method === 'POST') {
+        await refreshMonday();
+        res.writeHead(200, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify({ ok: true }));
+        return;
+      }
 
       if (path === '/api/share' && req.method === 'GET') { await handleGetShareLinks(req, res); return; }
       if (path === '/api/share' && req.method === 'POST') {

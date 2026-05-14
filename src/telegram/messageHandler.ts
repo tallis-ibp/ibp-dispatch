@@ -1,5 +1,6 @@
 import { getSql } from '../db/client.js';
 import { addUpdate } from '../monday/addUpdate.js';
+import { handleSchedulerCallback } from './schedulerBot.js';
 import type { Context } from 'grammy';
 
 export const INTENTS = {
@@ -50,6 +51,14 @@ export async function handleCallbackQuery(ctx: Context): Promise<void> {
   if (!data) return;
 
   try {
+    // Morning summary scheduler buttons
+    if (data.startsWith('schedule_')) {
+      const date = data.split(':')[1];
+      await handleSchedulerCallback(data, date);
+      await ctx.answerCallbackQuery();
+      return;
+    }
+
     const [action, jobId] = data.split(':');
     const sql = getSql();
 

@@ -98,15 +98,14 @@ export async function generateProposals(date: string): Promise<ScheduleProposal[
     status: 'pending' as const,
   }));
 
+  // Clear existing proposals for this date before inserting fresh ones
+  await sql`DELETE FROM schedule_proposals WHERE date = ${date}`;
+
   await sql.begin(async (tx) => {
     for (const p of proposals) {
       await tx`
         INSERT INTO schedule_proposals (id, date, generated_at, crew_key, job_number, job_name, reasoning, confidence, status)
         VALUES (${p.id}, ${p.date}, ${p.generatedAt}, ${p.crewKey}, ${p.jobNumber}, ${p.jobName}, ${p.reasoning}, ${p.confidence}, ${p.status})
-        ON CONFLICT (id) DO UPDATE SET
-          reasoning = EXCLUDED.reasoning,
-          confidence = EXCLUDED.confidence,
-          status = EXCLUDED.status
       `;
     }
   });

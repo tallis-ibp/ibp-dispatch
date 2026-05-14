@@ -1,25 +1,12 @@
-/**
- * generateBriefs.ts
- * Reads schedule-records.json + jobs table for a given date,
- * writes brief header + brief_jobs rows to PostgreSQL.
- * Mirrors the business logic of src/generateBriefs.mjs.
- */
-
 import { getSql } from '../db/client.js';
 import { readFileSync, existsSync } from 'fs';
 import { randomUUID } from 'crypto';
 import type { ScheduleRecord } from '../types/index.js';
 
-// ---------------------------------------------------------------------------
-// Known gate codes — extend as more are confirmed
-// ---------------------------------------------------------------------------
 const KNOWN_GATE_CODES: Record<string, string> = {
-  '300021': '#8020', // Moreno-Sanchez — confirmed Apr 25 2026
+  '300021': '#8020',
 };
 
-// ---------------------------------------------------------------------------
-// Multilingual dispatch labels
-// ---------------------------------------------------------------------------
 type Lang = 'en' | 'es' | 'pt';
 
 const LABELS: Record<Lang, Record<string, string>> = {
@@ -32,9 +19,6 @@ function getLabels(lang: string): Record<string, string> {
   return LABELS[lang as Lang] ?? LABELS.en;
 }
 
-// ---------------------------------------------------------------------------
-// Helpers
-// ---------------------------------------------------------------------------
 function normalizeNum(n: string | number | null | undefined): string {
   return String(n ?? '').replace(/^0+/, '').trim();
 }
@@ -119,13 +103,76 @@ function buildDispatchText(opts: {
     .join('\n');
 }
 
-// ---------------------------------------------------------------------------
-// Main export
-// ---------------------------------------------------------------------------
+async function generateBriefsFromProposals(
+  date: string,
+  crewLanguage: Map<string, string>,
+  jobByNum: Map<string, DbJob>,
+): Promise<number> {
+  const sql = getSql();
+
+  const proposalRows = await sql<Array<{
+    crew_key: string;
+    job_number: string | null;
+    job_name: string | null;
+    reasoning: string | null;
+  }>>`
+    SELECT crew_key, job_number, job_name, reasoning
+    FROM schedule_proposals
+    WHERE date = ${date} AND status = 'approved'
+  `;
+
+  if (proposalRows.length === 0) return 0;
+
+  let totalJobs = 0;
+
+  await sql.begin(async (tx) => {
+    for (const prop of proposalRows) {
+      const lang = crewLanguage.get(prop.crew_key) ?? 'en';
+      const job = prop.job_number ? jobByNum.get(normalizeNum(prop.job_number)) : undefined;
+      const trailerArr: string[] = job ? (JSON.parse(job.trailer_needed ?? '[]') as string[]) : [];
+      const gateCode = prop.job_number ? (KNOWN_GATE_CODES[normalizeNum(prop.job_number)] ?? '') : '';
+      const materials = buildMaterials(job);
+      const riskFlags = buildRiskFlags(job);
+      const jobName = job?.item_name ?? prop.job_name ?? 'TBD';
+      const address = job?.address ?? '';
+      const trailer = trailerArr.join(', ');
+
+      const dispatchText = buildDispatchText({
+        jobName,
+        jobNumber: prop.job_number ?? null,
+        address,
+        gateCode,
+        supervisor: '',
+        trailer,
+        tasks: [prop.reasoning ?? jobName],
+        materials,
+        nextStop: 'Warehouse',
+        language: lang,
+      });
+
+      await tx`
+        INSERT INTO brief_jobs (
+          id, brief_date, crew_key, job_number, job_name, address, gate_code,
+          supervisor, trailer_type, tasks, materials, next_stop, risk_flags,
+          dispatch_text, check_in_status, last_check_in, approved, sent_at, annotations
+        ) VALUES (
+          ${randomUUID()}, ${date}, ${prop.crew_key}, ${prop.job_number ?? null}, ${jobName},
+          ${address || null}, ${gateCode || null}, ${null}, ${trailer || null},
+          ${JSON.stringify([prop.reasoning ?? jobName])}, ${JSON.stringify(materials)},
+          ${'Warehouse'}, ${JSON.stringify(riskFlags)}, ${dispatchText},
+          ${null}, ${null}, ${0}, ${null}, ${null}
+        )
+      `;
+      totalJobs++;
+    }
+  });
+
+  return totalJobs;
+}
+
 export async function generateBriefs(date: string): Promise<void> {
   const sql = getSql();
 
-  // Read schedule records from JSON (transition: later tasks move this to DB)
   const scheduleRaw = existsSync('data/schedule-records.json')
     ? (JSON.parse(readFileSync('data/schedule-records.json', 'utf-8')) as { records?: ScheduleRecord[] } | ScheduleRecord[])
     : { records: [] };
@@ -136,25 +183,27 @@ export async function generateBriefs(date: string): Promise<void> {
 
   const dayRecords = allRecords.filter((r) => r.date === date && r.status === 'assigned');
 
-  // Read crew language preferences from PostgreSQL (seeded by seedCrews)
   const crewRows = await sql<Array<{ key: string; language: string }>>`SELECT key, language FROM crews`;
   const crewLanguage = new Map(crewRows.map((r) => [r.key, r.language]));
 
-  // Read jobs from PostgreSQL, indexed by normalised job number
   const jobRows = await sql<DbJob[]>`SELECT * FROM jobs`;
   const jobByNum = new Map(jobRows.map((j) => [normalizeNum(j.job_number), j]));
 
-  // Insert/replace brief header
   await sql`
     INSERT INTO briefs (date, generated_at, approved, approved_at, approved_by)
     VALUES (${date}, ${new Date().toISOString()}, 0, NULL, NULL)
     ON CONFLICT (date) DO UPDATE SET generated_at = EXCLUDED.generated_at, approved = 0
   `;
 
-  // Clear existing brief_jobs for this date so re-runs are idempotent
   await sql`DELETE FROM brief_jobs WHERE brief_date = ${date}`;
 
-  // Group records by crewKey (mirrors generateBriefs.mjs grouping)
+  // If no schedule records (Vercel — file doesn't exist), fall back to approved proposals
+  if (dayRecords.length === 0) {
+    const totalJobs = await generateBriefsFromProposals(date, crewLanguage, jobByNum);
+    console.log(`[generateBriefs] ${date}: no schedule records — used ${totalJobs} approved proposals`);
+    return;
+  }
+
   const byCrewKey = new Map<string, ScheduleRecord[]>();
   for (const rec of dayRecords) {
     const key = rec.crewKey;
@@ -170,8 +219,6 @@ export async function generateBriefs(date: string): Promise<void> {
 
       for (const rec of recs) {
         const jobNums = rec.jobNumbers ?? [];
-
-        // One brief_jobs row per job number (mirrors mjs flatMap behaviour)
         const numbers = jobNums.length > 0 ? jobNums : [null];
 
         for (const jobNum of numbers) {
@@ -217,14 +264,9 @@ export async function generateBriefs(date: string): Promise<void> {
     }
   });
 
-  console.log(
-    `[generateBriefs] Generated brief for ${date} with ${byCrewKey.size} crews, ${totalJobs} job entries`,
-  );
+  console.log(`[generateBriefs] Generated brief for ${date} with ${byCrewKey.size} crews, ${totalJobs} job entries`);
 }
 
-// ---------------------------------------------------------------------------
-// Direct invocation: tsx src/core/generateBriefs.ts [YYYY-MM-DD]
-// ---------------------------------------------------------------------------
 if (process.argv[1]?.endsWith('generateBriefs.ts') || process.argv[1]?.endsWith('generateBriefs.js')) {
   const date = process.argv[2] ?? new Date().toISOString().slice(0, 10);
   generateBriefs(date).catch((err: unknown) => {
