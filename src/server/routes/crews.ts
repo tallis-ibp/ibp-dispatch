@@ -33,6 +33,56 @@ export async function handleGetCrews(req: IncomingMessage, res: ServerResponse):
   res.end(JSON.stringify(crews));
 }
 
+// GET /api/crews/:key  → full detail incl. last 10 brief_jobs
+export async function handleGetCrewDetail(
+  req: IncomingMessage,
+  res: ServerResponse,
+  key: string,
+): Promise<void> {
+  if (!key) {
+    res.writeHead(400, { 'Content-Type': 'application/json' });
+    res.end(JSON.stringify({ error: 'crew key is required' }));
+    return;
+  }
+  const sql = getSql();
+  const [crew] = await sql<Array<{
+    key: string; displayName: string; telegramGroupId: string | null;
+    language: string; reliability: string | null;
+    strengths: string; cautions: string;
+  }>>`
+    SELECT
+      key, display_name AS "displayName", telegram_group_id AS "telegramGroupId",
+      language, reliability, strengths, cautions
+    FROM crews WHERE key = ${key}
+  `;
+  if (!crew) {
+    res.writeHead(404, { 'Content-Type': 'application/json' });
+    res.end(JSON.stringify({ error: 'Crew not found' }));
+    return;
+  }
+  const recentJobs = await sql`
+    SELECT
+      brief_date AS "briefDate", job_number AS "jobNumber",
+      job_name   AS "jobName",   check_in_status AS "checkInStatus",
+      sent_at    AS "sentAt"
+    FROM brief_jobs
+    WHERE crew_key = ${key}
+    ORDER BY brief_date DESC, job_number
+    LIMIT 10
+  `;
+  const safeParse = <T,>(s: unknown, fallback: T): T => {
+    if (s == null) return fallback;
+    try { return JSON.parse(s as string) as T; } catch { return fallback; }
+  };
+  res.writeHead(200, { 'Content-Type': 'application/json' });
+  res.end(JSON.stringify({
+    ...crew,
+    strengths: safeParse(crew.strengths, [] as string[]),
+    cautions:  safeParse(crew.cautions,  [] as string[]),
+    recentJobs,
+  }));
+}
+
 export async function handleUpdateCrew(
   req: IncomingMessage,
   res: ServerResponse,
@@ -71,6 +121,38 @@ export async function handleUpdateCrew(
   }
   res.writeHead(200, { 'Content-Type': 'application/json' });
   res.end(JSON.stringify({ ok: true }));
+}
+
+// GET /api/chats/recent
+// Returns recent chat_ids the bot has actually received messages from
+// (photos + flags). Used by the Connect modal so users can click instead of typing.
+export async function handleGetRecentChats(
+  req: IncomingMessage,
+  res: ServerResponse,
+): Promise<void> {
+  const sql = getSql();
+  const rows = await sql<{ chatId: string; sender: string | null; lastSeen: string; source: string }[]>`
+    SELECT chat_id AS "chatId", sender, MAX(last_seen) AS "lastSeen", MAX(source) AS source
+    FROM (
+      SELECT chat_id, sender, received_at AS last_seen, 'photo' AS source FROM photos WHERE chat_id IS NOT NULL
+      UNION ALL
+      SELECT chat_id, sender, timestamp     AS last_seen, 'flag'  AS source FROM flags  WHERE chat_id IS NOT NULL
+    ) all_chats
+    GROUP BY chat_id, sender
+    ORDER BY "lastSeen" DESC
+    LIMIT 20
+  `;
+  // Mark which chats are already linked to a crew so the UI can dim them
+  const linked = await sql<{ telegram_group_id: string; display_name: string }[]>`
+    SELECT telegram_group_id, display_name FROM crews WHERE telegram_group_id IS NOT NULL
+  `;
+  const linkedMap = new Map(linked.map((c) => [c.telegram_group_id, c.display_name]));
+  const result = rows.map((r) => ({
+    ...r,
+    linkedTo: linkedMap.get(r.chatId) ?? null,
+  }));
+  res.writeHead(200, { 'Content-Type': 'application/json' });
+  res.end(JSON.stringify(result));
 }
 
 export async function handleTestCrewMessage(

@@ -11,9 +11,17 @@ import {
 } from './routes/auth.js';
 import { handleGetBrief, handleGenerateBrief, handleApproveBrief } from './routes/briefs.js';
 import { handleGetProposals, handleGenerateProposals, handleUpdateProposal } from './routes/proposals.js';
-import { handleGetFlags, handleResolveFlag, handleTeachPhrase } from './routes/flags.js';
-import { handleGetPhotos } from './routes/photos.js';
-import { handleGetCrews, handleCreateCrew, handleUpdateCrew, handleTestCrewMessage } from './routes/crews.js';
+import { handleGetFlags, handleGetFlagDetail, handleResolveFlag, handleTeachPhrase } from './routes/flags.js';
+import { handleGetPhotos, handleGetPhotoImage } from './routes/photos.js';
+import {
+  handleGetCrews, handleCreateCrew, handleUpdateCrew, handleTestCrewMessage,
+  handleGetCrewDetail, handleGetRecentChats,
+} from './routes/crews.js';
+import { handleGetJob, handleGetMaterialStatus, handleSetMaterialStatus } from './routes/jobs.js';
+import {
+  handleGetLearnedPhrases, handleCreateLearnedPhrase, handleDeleteLearnedPhrase,
+} from './routes/learnedPhrases.js';
+import { handleGetIntegrationsHealth } from './routes/health.js';
 import { refreshMonday } from '../monday/refreshMonday.js';
 import { validateSession, extractTokenFromRequest } from '../middleware/auth.js';
 import { generalLimiter, loginLimiter } from '../middleware/rateLimit.js';
@@ -131,14 +139,53 @@ export async function requestHandler(req: IncomingMessage, res: ServerResponse):
         const body = await readBody(req) as { key: string; displayName: string; telegramGroupId?: string; language?: string };
         await handleCreateCrew(req, res, body); return;
       }
+      if (path === '/api/chats/recent' && req.method === 'GET') {
+        await handleGetRecentChats(req, res); return;
+      }
       if (path.startsWith('/api/crews/') && path.endsWith('/test') && req.method === 'POST') {
         const key = path.slice('/api/crews/'.length).replace('/test', '');
         await handleTestCrewMessage(req, res, key); return;
+      }
+      if (path.startsWith('/api/crews/') && req.method === 'GET') {
+        const key = path.slice('/api/crews/'.length);
+        await handleGetCrewDetail(req, res, key); return;
       }
       if (path.startsWith('/api/crews/') && req.method === 'PATCH') {
         const key = path.slice('/api/crews/'.length);
         const body = await readBody(req) as { telegramGroupId?: string; language?: string };
         await handleUpdateCrew(req, res, key, body); return;
+      }
+
+      // Jobs
+      if (path.startsWith('/api/jobs/') && path.endsWith('/material-status') && req.method === 'GET') {
+        const jobNumber = path.slice('/api/jobs/'.length).replace('/material-status', '');
+        await handleGetMaterialStatus(req, res, jobNumber); return;
+      }
+      if (path.startsWith('/api/jobs/') && path.endsWith('/material-status') && req.method === 'POST') {
+        const jobNumber = path.slice('/api/jobs/'.length).replace('/material-status', '');
+        const body = await readBody(req) as { confirmed?: boolean };
+        await handleSetMaterialStatus(req, res, jobNumber, body); return;
+      }
+      if (path.startsWith('/api/jobs/') && req.method === 'GET') {
+        const jobNumber = path.slice('/api/jobs/'.length);
+        await handleGetJob(req, res, jobNumber); return;
+      }
+
+      // Learned phrases
+      if (path === '/api/learned-phrases' && req.method === 'GET') {
+        await handleGetLearnedPhrases(req, res); return;
+      }
+      if (path === '/api/learned-phrases' && req.method === 'POST') {
+        const body = await readBody(req) as { phrase?: string; intent?: string };
+        await handleCreateLearnedPhrase(req, res, body); return;
+      }
+      if (path.startsWith('/api/learned-phrases/') && req.method === 'DELETE') {
+        await handleDeleteLearnedPhrase(req, res, path.slice('/api/learned-phrases/'.length)); return;
+      }
+
+      // Health
+      if (path === '/api/health/integrations' && req.method === 'GET') {
+        await handleGetIntegrationsHealth(req, res); return;
       }
 
       if (path === '/api/share' && req.method === 'GET') { await handleGetShareLinks(req, res); return; }
@@ -187,11 +234,24 @@ export async function requestHandler(req: IncomingMessage, res: ServerResponse):
         const body = await readBody(req) as { note?: string };
         await handleResolveFlag(req, res, id, body); return;
       }
+      if (path.startsWith('/api/flags/') && req.method === 'GET') {
+        await handleGetFlagDetail(req, res, path.slice('/api/flags/'.length)); return;
+      }
 
       // Photos
       if (path === '/api/photos' && req.method === 'GET') {
         const date = url.searchParams.get('date') ?? new Date().toISOString().slice(0, 10);
-        await handleGetPhotos(req, res, date); return;
+        const filters = {
+          crewKey: url.searchParams.get('crewKey') ?? undefined,
+          status:  url.searchParams.get('status')  ?? undefined,
+          limit:   url.searchParams.get('limit')   ? parseInt(url.searchParams.get('limit')!, 10) : undefined,
+          offset:  url.searchParams.get('offset')  ? parseInt(url.searchParams.get('offset')!, 10) : undefined,
+        };
+        await handleGetPhotos(req, res, date, filters); return;
+      }
+      if (path.startsWith('/api/photos/') && path.endsWith('/image') && req.method === 'GET') {
+        const id = path.slice('/api/photos/'.length).replace('/image', '');
+        await handleGetPhotoImage(req, res, id); return;
       }
 
       res.writeHead(404); res.end(JSON.stringify({ error: 'Not found' })); return;
