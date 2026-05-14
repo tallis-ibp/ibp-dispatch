@@ -90,6 +90,19 @@ export async function requestHandler(req: IncomingMessage, res: ServerResponse):
       return;
     }
 
+    // Debug endpoint — check bot token works
+    if (path === '/api/debug' && req.method === 'GET') {
+      try {
+        const me = await getBot().api.getMe();
+        res.writeHead(200, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify({ ok: true, bot: me.username, id: me.id }));
+      } catch (err) {
+        res.writeHead(200, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify({ ok: false, error: String(err) }));
+      }
+      return;
+    }
+
     // Auth routes (no JWT required)
     if (path === '/api/auth/init' && req.method === 'POST') { await handleInitLogin(req, res); return; }
     if (path === '/api/auth/exchange' && req.method === 'GET') {

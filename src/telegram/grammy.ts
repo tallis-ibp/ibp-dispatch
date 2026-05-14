@@ -14,7 +14,10 @@ export function getBot(): Bot {
 
     botInstance.command('start', async (ctx) => {
       const payload = ctx.match;
-      if (!payload?.startsWith('login_')) return;
+      if (!payload?.startsWith('login_')) {
+        await ctx.reply('IBP Dispatch bot active. To log in to the dashboard, open the website and click "Open Telegram Bot".');
+        return;
+      }
 
       const nonce = payload.slice(6);
       if (!schedulerChatId) {
@@ -28,13 +31,17 @@ export function getBot(): Bot {
       const loginUrl = `${publicUrl}/api/auth/exchange?nonce=${nonce}`;
       await ctx.reply('Tap the button below to log in. This link expires in 10 minutes.', {
         reply_markup: {
-          inline_keyboard: [[{ text: '🔐 Log In to Dashboard', url: loginUrl }]],
+          inline_keyboard: [[{ text: 'Log In to Dashboard', url: loginUrl }]],
         },
       });
     });
 
     botInstance.on('callback_query', handleCallbackQuery);
     botInstance.on('message', handleTextMessage);
+
+    botInstance.catch((err) => {
+      console.error('[grammy] Unhandled error:', err);
+    });
   }
   return botInstance;
 }
