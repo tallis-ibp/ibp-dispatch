@@ -80,8 +80,12 @@ export async function requestHandler(req: IncomingMessage, res: ServerResponse):
       const secret = req.headers['x-telegram-bot-api-secret-token'];
       if (WEBHOOK_SECRET && secret !== WEBHOOK_SECRET) { res.writeHead(403); res.end(); return; }
       const body = await readBody(req);
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      await getBot().handleUpdate(body as any);
+      try {
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        await getBot().handleUpdate(body as any);
+      } catch (err) {
+        console.error('[webhook] handleUpdate error:', err);
+      }
       res.writeHead(200); res.end();
       return;
     }
