@@ -12,24 +12,22 @@ export async function seedCrews(): Promise<void> {
     telegramGroups = JSON.parse(readFileSync('data/crew-telegram-groups.json', 'utf-8'));
   }
 
-  await sql.begin(async (tx) => {
-    for (const profile of Object.values(CREW_PROFILES)) {
-      const tg = telegramGroups[profile.key];
-      await tx`
-        INSERT INTO crews (key, display_name, telegram_group_id, language, reliability, strengths, cautions)
-        VALUES (
-          ${profile.key},
-          ${profile.displayName},
-          ${tg?.groupId ?? null},
-          ${tg?.language ?? profile.language},
-          ${profile.reliability},
-          ${JSON.stringify(profile.strengths)},
-          ${JSON.stringify(profile.cautions)}
-        )
-        ON CONFLICT (key) DO NOTHING
-      `;
-    }
-  });
+  for (const profile of Object.values(CREW_PROFILES)) {
+    const tg = telegramGroups[profile.key];
+    await sql`
+      INSERT INTO crews (key, display_name, telegram_group_id, language, reliability, strengths, cautions)
+      VALUES (
+        ${profile.key},
+        ${profile.displayName},
+        ${tg?.groupId ?? null},
+        ${tg?.language ?? profile.language},
+        ${profile.reliability},
+        ${JSON.stringify(profile.strengths)},
+        ${JSON.stringify(profile.cautions)}
+      )
+      ON CONFLICT (key) DO NOTHING
+    `;
+  }
 
   console.log('[seedCrews] Seeded crew profiles into PostgreSQL');
 }
