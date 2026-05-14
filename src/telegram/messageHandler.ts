@@ -49,30 +49,35 @@ export async function handleCallbackQuery(ctx: Context): Promise<void> {
   const data = ctx.callbackQuery?.data;
   if (!data) return;
 
-  const [action, jobId] = data.split(':');
-  const sql = getSql();
+  try {
+    const [action, jobId] = data.split(':');
+    const sql = getSql();
 
-  if (action === 'done') {
-    await sql`UPDATE brief_jobs SET check_in_status = 'done', last_check_in = ${new Date().toISOString()} WHERE id = ${jobId}`;
-    const [job] = await sql<{ job_number: string; job_name: string }[]>`SELECT job_number, job_name FROM brief_jobs WHERE id = ${jobId}`;
-    if (job?.job_number) {
-      const [mondayItem] = await sql<{ id: string }[]>`SELECT id FROM jobs WHERE job_number = ${job.job_number}`;
-      if (mondayItem) {
-        await addUpdate(mondayItem.id, {
-          senderName: 'Crew',
-          timestamp: new Date().toISOString(),
-          aiSummary: `✅ Crew marked job *${job.job_name}* as complete`,
-          completionStatus: 'done',
-        });
+    if (action === 'done') {
+      await sql`UPDATE brief_jobs SET check_in_status = 'done', last_check_in = ${new Date().toISOString()} WHERE id = ${jobId}`;
+      const [job] = await sql<{ job_number: string; job_name: string }[]>`SELECT job_number, job_name FROM brief_jobs WHERE id = ${jobId}`;
+      if (job?.job_number) {
+        const [mondayItem] = await sql<{ id: string }[]>`SELECT id FROM jobs WHERE job_number = ${job.job_number}`;
+        if (mondayItem) {
+          await addUpdate(mondayItem.id, {
+            senderName: 'Crew',
+            timestamp: new Date().toISOString(),
+            aiSummary: `✅ Crew marked job *${job.job_name}* as complete`,
+            completionStatus: 'done',
+          });
+        }
       }
+      await ctx.answerCallbackQuery('Marked as done ✅');
+      await ctx.reply('Got it — job marked as complete ✅');
     }
-    await ctx.answerCallbackQuery('Marked as done ✅');
-    await ctx.reply('Got it — job marked as complete ✅');
-  }
 
-  if (action === 'issue') {
-    await ctx.answerCallbackQuery();
-    await ctx.reply('Please describe the issue and we will notify the scheduler right away.');
+    if (action === 'issue') {
+      await ctx.answerCallbackQuery();
+      await ctx.reply('Please describe the issue and we will notify the scheduler right away.');
+    }
+  } catch (err) {
+    console.error('[handleCallbackQuery] Error:', err);
+    await ctx.answerCallbackQuery('Error processing request').catch(() => undefined);
   }
 }
 
@@ -80,27 +85,32 @@ export async function handleTextMessage(ctx: Context): Promise<void> {
   const text = ctx.message?.text;
   const chatId = String(ctx.chat?.id);
   if (!text || !chatId) return;
+  if (text.startsWith('/')) return;
 
-  const intent = await detectIntent(text);
-  const sql = getSql();
-  const [crew] = await sql<{ key: string; display_name: string }[]>`
-    SELECT key, display_name FROM crews WHERE telegram_group_id = ${chatId}
-  `;
-
-  if (!crew) return;
-
-  if (!intent) {
-    await sql`
-      INSERT INTO flags (id, date, timestamp, chat_id, crew_key, sender, text)
-      VALUES (
-        ${'flag-' + Date.now()},
-        ${new Date().toISOString().slice(0, 10)},
-        ${new Date().toISOString()},
-        ${chatId},
-        ${crew.key},
-        ${ctx.message?.from?.first_name ?? 'Unknown'},
-        ${text}
-      )
+  try {
+    const intent = await detectIntent(text);
+    const sql = getSql();
+    const [crew] = await sql<{ key: string; display_name: string }[]>`
+      SELECT key, display_name FROM crews WHERE telegram_group_id = ${chatId}
     `;
+
+    if (!crew) return;
+
+    if (!intent) {
+      await sql`
+        INSERT INTO flags (id, date, timestamp, chat_id, crew_key, sender, text)
+        VALUES (
+          ${'flag-' + Date.now()},
+          ${new Date().toISOString().slice(0, 10)},
+          ${new Date().toISOString()},
+          ${chatId},
+          ${crew.key},
+          ${ctx.message?.from?.first_name ?? 'Unknown'},
+          ${text}
+        )
+      `;
+    }
+  } catch (err) {
+    console.error('[handleTextMessage] Error:', err);
   }
 }
