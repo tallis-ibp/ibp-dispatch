@@ -9,19 +9,19 @@ export async function handleGetPhotos(req: IncomingMessage, res: ServerResponse,
     SELECT
       p.id,
       p.date,
-      p.received_at,
-      p.file_id,
-      p.local_path,
-      p.chat_id,
+      p.received_at       AS "receivedAt",
+      p.file_id           AS "fileId",
+      p.local_path        AS "localPath",
+      p.chat_id           AS "chatId",
       p.sender,
       p.caption,
-      p.crew_key,
-      p.job_number,
-      p.monday_item_id,
-      p.ai_summary,
-      p.completion_status,
-      p.monday_updated,
-      c.display_name AS "crewDisplay"
+      p.crew_key          AS "crewKey",
+      p.job_number        AS "jobNumber",
+      p.monday_item_id    AS "mondayItemId",
+      p.ai_summary        AS "aiSummary",
+      p.completion_status AS "completionStatus",
+      p.monday_updated    AS "mondayUpdated",
+      c.display_name      AS "crewDisplay"
     FROM photos p
     LEFT JOIN crews c ON c.key = p.crew_key
     WHERE p.date = ${date}

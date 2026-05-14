@@ -125,47 +125,45 @@ async function generateBriefsFromProposals(
 
   let totalJobs = 0;
 
-  await sql.begin(async (tx) => {
-    for (const prop of proposalRows) {
-      const lang = crewLanguage.get(prop.crew_key) ?? 'en';
-      const job = prop.job_number ? jobByNum.get(normalizeNum(prop.job_number)) : undefined;
-      const trailerArr: string[] = job ? (JSON.parse(job.trailer_needed ?? '[]') as string[]) : [];
-      const gateCode = prop.job_number ? (KNOWN_GATE_CODES[normalizeNum(prop.job_number)] ?? '') : '';
-      const materials = buildMaterials(job);
-      const riskFlags = buildRiskFlags(job);
-      const jobName = job?.item_name ?? prop.job_name ?? 'TBD';
-      const address = job?.address ?? '';
-      const trailer = trailerArr.join(', ');
+  for (const prop of proposalRows) {
+    const lang = crewLanguage.get(prop.crew_key) ?? 'en';
+    const job = prop.job_number ? jobByNum.get(normalizeNum(prop.job_number)) : undefined;
+    const trailerArr: string[] = job ? (JSON.parse(job.trailer_needed ?? '[]') as string[]) : [];
+    const gateCode = prop.job_number ? (KNOWN_GATE_CODES[normalizeNum(prop.job_number)] ?? '') : '';
+    const materials = buildMaterials(job);
+    const riskFlags = buildRiskFlags(job);
+    const jobName = job?.item_name ?? prop.job_name ?? 'TBD';
+    const address = job?.address ?? '';
+    const trailer = trailerArr.join(', ');
 
-      const dispatchText = buildDispatchText({
-        jobName,
-        jobNumber: prop.job_number ?? null,
-        address,
-        gateCode,
-        supervisor: '',
-        trailer,
-        tasks: [prop.reasoning ?? jobName],
-        materials,
-        nextStop: 'Warehouse',
-        language: lang,
-      });
+    const dispatchText = buildDispatchText({
+      jobName,
+      jobNumber: prop.job_number ?? null,
+      address,
+      gateCode,
+      supervisor: '',
+      trailer,
+      tasks: [prop.reasoning ?? jobName],
+      materials,
+      nextStop: 'Warehouse',
+      language: lang,
+    });
 
-      await tx`
-        INSERT INTO brief_jobs (
-          id, brief_date, crew_key, job_number, job_name, address, gate_code,
-          supervisor, trailer_type, tasks, materials, next_stop, risk_flags,
-          dispatch_text, check_in_status, last_check_in, approved, sent_at, annotations
-        ) VALUES (
-          ${randomUUID()}, ${date}, ${prop.crew_key}, ${prop.job_number ?? null}, ${jobName},
-          ${address || null}, ${gateCode || null}, ${null}, ${trailer || null},
-          ${JSON.stringify([prop.reasoning ?? jobName])}, ${JSON.stringify(materials)},
-          ${'Warehouse'}, ${JSON.stringify(riskFlags)}, ${dispatchText},
-          ${null}, ${null}, ${0}, ${null}, ${null}
-        )
-      `;
-      totalJobs++;
-    }
-  });
+    await sql`
+      INSERT INTO brief_jobs (
+        id, brief_date, crew_key, job_number, job_name, address, gate_code,
+        supervisor, trailer_type, tasks, materials, next_stop, risk_flags,
+        dispatch_text, check_in_status, last_check_in, approved, sent_at, annotations
+      ) VALUES (
+        ${randomUUID()}, ${date}, ${prop.crew_key}, ${prop.job_number ?? null}, ${jobName},
+        ${address || null}, ${gateCode || null}, ${null}, ${trailer || null},
+        ${JSON.stringify([prop.reasoning ?? jobName])}, ${JSON.stringify(materials)},
+        ${'Warehouse'}, ${JSON.stringify(riskFlags)}, ${dispatchText},
+        ${null}, ${null}, ${0}, ${null}, ${null}
+      )
+    `;
+    totalJobs++;
+  }
 
   return totalJobs;
 }
@@ -213,56 +211,54 @@ export async function generateBriefs(date: string): Promise<void> {
 
   let totalJobs = 0;
 
-  await sql.begin(async (tx) => {
-    for (const [crewKey, recs] of byCrewKey) {
-      const lang = crewLanguage.get(crewKey) ?? 'en';
+  for (const [crewKey, recs] of byCrewKey) {
+    const lang = crewLanguage.get(crewKey) ?? 'en';
 
-      for (const rec of recs) {
-        const jobNums = rec.jobNumbers ?? [];
-        const numbers = jobNums.length > 0 ? jobNums : [null];
+    for (const rec of recs) {
+      const jobNums = rec.jobNumbers ?? [];
+      const numbers = jobNums.length > 0 ? jobNums : [null];
 
-        for (const jobNum of numbers) {
-          const job = jobNum ? jobByNum.get(normalizeNum(jobNum)) : undefined;
-          const trailerArr: string[] = job ? (JSON.parse(job.trailer_needed ?? '[]') as string[]) : [];
-          const gateCode = jobNum ? (KNOWN_GATE_CODES[normalizeNum(jobNum)] ?? '') : '';
-          const materials = buildMaterials(job);
-          const riskFlags = buildRiskFlags(job);
-          const jobName = job?.item_name ?? rec.rawAssignment;
-          const address = job?.address ?? '';
-          const trailer = trailerArr.join(', ');
+      for (const jobNum of numbers) {
+        const job = jobNum ? jobByNum.get(normalizeNum(jobNum)) : undefined;
+        const trailerArr: string[] = job ? (JSON.parse(job.trailer_needed ?? '[]') as string[]) : [];
+        const gateCode = jobNum ? (KNOWN_GATE_CODES[normalizeNum(jobNum)] ?? '') : '';
+        const materials = buildMaterials(job);
+        const riskFlags = buildRiskFlags(job);
+        const jobName = job?.item_name ?? rec.rawAssignment;
+        const address = job?.address ?? '';
+        const trailer = trailerArr.join(', ');
 
-          const dispatchText = buildDispatchText({
-            jobName,
-            jobNumber: jobNum,
-            address,
-            gateCode,
-            supervisor: '',
-            trailer,
-            tasks: [rec.rawAssignment],
-            materials,
-            nextStop: 'Warehouse',
-            language: lang,
-          });
+        const dispatchText = buildDispatchText({
+          jobName,
+          jobNumber: jobNum,
+          address,
+          gateCode,
+          supervisor: '',
+          trailer,
+          tasks: [rec.rawAssignment],
+          materials,
+          nextStop: 'Warehouse',
+          language: lang,
+        });
 
-          await tx`
-            INSERT INTO brief_jobs (
-              id, brief_date, crew_key, job_number, job_name, address, gate_code,
-              supervisor, trailer_type, tasks, materials, next_stop, risk_flags,
-              dispatch_text, check_in_status, last_check_in, approved, sent_at, annotations
-            ) VALUES (
-              ${randomUUID()}, ${date}, ${crewKey}, ${jobNum ?? null}, ${jobName},
-              ${address || null}, ${gateCode || null}, ${null}, ${trailer || null},
-              ${JSON.stringify([rec.rawAssignment])}, ${JSON.stringify(materials)},
-              ${'Warehouse'}, ${JSON.stringify(riskFlags)}, ${dispatchText},
-              ${null}, ${null}, ${0}, ${null}, ${null}
-            )
-          `;
+        await sql`
+          INSERT INTO brief_jobs (
+            id, brief_date, crew_key, job_number, job_name, address, gate_code,
+            supervisor, trailer_type, tasks, materials, next_stop, risk_flags,
+            dispatch_text, check_in_status, last_check_in, approved, sent_at, annotations
+          ) VALUES (
+            ${randomUUID()}, ${date}, ${crewKey}, ${jobNum ?? null}, ${jobName},
+            ${address || null}, ${gateCode || null}, ${null}, ${trailer || null},
+            ${JSON.stringify([rec.rawAssignment])}, ${JSON.stringify(materials)},
+            ${'Warehouse'}, ${JSON.stringify(riskFlags)}, ${dispatchText},
+            ${null}, ${null}, ${0}, ${null}, ${null}
+          )
+        `;
 
-          totalJobs++;
-        }
+        totalJobs++;
       }
     }
-  });
+  }
 
   console.log(`[generateBriefs] Generated brief for ${date} with ${byCrewKey.size} crews, ${totalJobs} job entries`);
 }

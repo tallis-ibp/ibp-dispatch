@@ -1,5 +1,7 @@
 import { Bot } from 'grammy';
 import { handleCallbackQuery, handleTextMessage } from './messageHandler.js';
+import { handlePhotoMessage } from './photoHandler.js';
+import { getSql } from '../db/client.js';
 
 let botInstance: Bot | null = null;
 
@@ -43,6 +45,50 @@ export function getBot(): Bot {
       );
     });
 
+    // 1.6 — admin test commands (scheduler only)
+    botInstance.command('test', async (ctx) => {
+      if (!schedulerChatId || String(ctx.chat.id) !== schedulerChatId) {
+        await ctx.reply('Not available.');
+        return;
+      }
+      const args = (ctx.match ?? '').trim();
+
+      if (args === 'ping') {
+        const sha = process.env.VERCEL_GIT_COMMIT_SHA ?? 'local';
+        const env = process.env.NODE_ENV ?? 'development';
+        await ctx.reply(`pong\nenv: ${env}\ncommit: ${sha}`);
+        return;
+      }
+
+      if (args === 'brief') {
+        const today = new Date().toISOString().slice(0, 10);
+        try {
+          const { generateBriefs } = await import('../core/generateBriefs.js');
+          await generateBriefs(today);
+          const sql = getSql();
+          const [{ n }] = await sql<[{ n: string }]>`SELECT COUNT(*) AS n FROM brief_jobs WHERE brief_date = ${today}`;
+          await ctx.reply(`Brief generated — ${n} brief_jobs for ${today}`);
+        } catch (err) {
+          await ctx.reply(`Brief generation failed: ${String(err)}`);
+        }
+        return;
+      }
+
+      if (args === 'webhook') {
+        try {
+          const info = await ctx.api.getWebhookInfo();
+          await ctx.reply(`Webhook: ${info.url || '(not set)'}\nPending updates: ${info.pending_update_count}`);
+        } catch (err) {
+          await ctx.reply(`Webhook info failed: ${String(err)}`);
+        }
+        return;
+      }
+
+      await ctx.reply('Unknown command. Try: /test ping · /test brief · /test webhook');
+    });
+
+    // 1.4 — photo handler registered before generic message handler to avoid double-handling
+    botInstance.on('message:photo', handlePhotoMessage);
     botInstance.on('callback_query', handleCallbackQuery);
     botInstance.on('message', handleTextMessage);
 

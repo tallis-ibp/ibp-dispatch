@@ -27,7 +27,7 @@ export function buildMorningSummary(
     lines.push('', `⚠️ ${flagCount} flag${flagCount === 1 ? '' : 's'} need attention`);
   }
 
-  lines.push('', '_Auto-hold if no response by 7:00 AM_');
+  lines.push('', 'Tap a button below to approve, hold, or open the dashboard.');
   return lines.join('\n');
 }
 
@@ -95,7 +95,7 @@ export async function handleSchedulerCallback(callbackData: string, date: string
   }
 
   if (callbackData.startsWith('schedule_hold:')) {
-    await bot.api.sendMessage(schedulerChatId, "🚫 Schedule held. I'll remind you in 30 minutes.");
+    await bot.api.sendMessage(schedulerChatId, "🚫 Schedule held. Tap Regenerate when ready, or it will retry on the next morning cron.");
   }
 
   if (callbackData.startsWith('schedule_dashboard:')) {
