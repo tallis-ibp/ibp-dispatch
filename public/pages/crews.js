@@ -61,27 +61,48 @@ IBP.registerRoute('crews', async (main) => {
 
   // ─── Three sections ──────────────────────────────────────
   if (workingToday.length) {
-    wrap.appendChild(buildSection('active', 'Working today', workingToday));
+    wrap.appendChild(buildSection('active', 'Working today', workingToday, { collapsible: false }));
   }
   if (onStandby.length) {
-    wrap.appendChild(buildSection('standby', 'On standby', onStandby));
+    wrap.appendChild(buildSection('standby', 'On standby', onStandby, { collapsible: false }));
   }
   if (awaitingSetup.length) {
-    wrap.appendChild(buildSection('idle', 'Awaiting Telegram setup', awaitingSetup));
+    // Collapsed by default — these crews aren't operational today, so they're
+    // noise on the daily view. Click to expand when you need to configure one.
+    wrap.appendChild(buildSection('idle', 'Inactive', awaitingSetup, {
+      collapsible: true,
+      collapsed: true,
+      sub: 'No Telegram link yet',
+    }));
   }
 });
 
-function buildSection(dotClass, label, crews) {
-  const section = IBP.el('div', 'section-group');
-  const heading = IBP.el('div', 'section-heading');
-  heading.innerHTML = `
-    <span class="section-heading-dot ${dotClass}"></span>
-    <span class="section-heading-label">${label}</span>
-    <span class="section-heading-count">${IBP.roundNum(crews.length)}</span>
-  `;
+function buildSection(dotClass, label, crews, opts = {}) {
+  const { collapsible = false, collapsed = false, sub = '' } = opts;
+  const section = IBP.el('div', `section-group${collapsed ? ' collapsed' : ''}`);
+
+  const heading = IBP.el('div', `section-heading ${collapsible ? 'toggle' : ''}`);
+  const dot = IBP.el('span', `section-heading-dot ${dotClass}`);
+  heading.appendChild(dot);
+  heading.appendChild(IBP.el('span', 'section-heading-label', label));
+  if (sub) {
+    const subEl = IBP.el('span');
+    subEl.style.cssText = 'font-size:11px;color:var(--ink-400);';
+    subEl.textContent = `· ${sub}`;
+    heading.appendChild(subEl);
+  }
+  heading.appendChild(IBP.el('span', 'section-heading-count', IBP.roundNum(crews.length)));
+
+  if (collapsible) {
+    heading.appendChild(IBP.el('span', 'section-heading-spacer'));
+    const caret = IBP.el('span', 'section-heading-caret');
+    caret.innerHTML = '<i class="ti ti-chevron-down"></i>';
+    heading.appendChild(caret);
+    heading.addEventListener('click', () => section.classList.toggle('collapsed'));
+  }
   section.appendChild(heading);
-  const grid = IBP.el('div', 'card-grid-3');
-  // Sort alphabetically within group
+
+  const grid = IBP.el('div', 'card-grid-3 section-grid');
   const sorted = [...crews].sort((a, b) => a.display_name.localeCompare(b.display_name));
   for (const c of sorted) grid.appendChild(buildOpCard(c));
   section.appendChild(grid);
@@ -104,14 +125,8 @@ function buildOpCard(crew) {
   identity.appendChild(IBP.avatar(crew.display_name, 'md'));
   const nameWrap = IBP.el('div', 'crew-mgmt-name-wrap');
   nameWrap.appendChild(IBP.el('div', 'crew-mgmt-name', crew.display_name));
-
-  const tagline = IBP.el('div', 'crew-mgmt-tagline');
-  tagline.appendChild(IBP.el('span', '', (crew.language || 'en').toUpperCase()));
-  if (crew.reliability) {
-    tagline.appendChild(IBP.el('span', 'dot-sep'));
-    tagline.appendChild(IBP.el('span', '', `${crew.reliability} reliability`));
-  }
-  nameWrap.appendChild(tagline);
+  // Head stays clean — just name. Operational stats live in the mini-grid below,
+  // AI metadata (language, reliability) lives in the drawer.
   identity.appendChild(nameWrap);
   head.appendChild(identity);
 
@@ -216,15 +231,24 @@ function buildOpCard(crew) {
 // OPERATIONAL DRAWER — work info, recent activity, photos, flags
 // ════════════════════════════════════════════════════════════════
 async function openOpDrawer(crew) {
-  // Profile header
+  // Profile header — clear, visible AI metadata as badges
   const profileHeader = IBP.el('div', 'drawer-profile-header');
   profileHeader.appendChild(IBP.avatar(crew.display_name, 'lg'));
   const info = IBP.el('div', 'drawer-profile-info');
   info.appendChild(IBP.el('div', 'drawer-profile-name', crew.display_name));
-  const tag = IBP.el('div', 'drawer-profile-key');
-  tag.innerHTML = `${(crew.language || 'en').toUpperCase()}${crew.reliability ? ` · ${crew.reliability} reliability` : ''}`;
-  info.appendChild(tag);
+
+  // Badge row: language + reliability — visible, not buried gray text
+  const badges = IBP.el('div', 'badge-row');
+  badges.appendChild(IBP.el('span', 'badge neutral', (crew.language || 'en').toUpperCase()));
+  if (crew.reliability) {
+    const rel = crew.reliability;
+    badges.appendChild(IBP.el('span',
+      `badge ${rel === 'high' ? 'success' : rel === 'low' ? 'danger' : 'warning'}`,
+      `${rel} reliability`));
+  }
+  info.appendChild(badges);
   profileHeader.appendChild(info);
+
   const hs = IBP.el('div', `tg-status ${crew.telegram_group_id ? '' : 'disconnected'}`);
   hs.innerHTML = `<span class="dot"></span><span>${crew.telegram_group_id ? 'Live' : 'Not set'}</span>`;
   profileHeader.appendChild(hs);

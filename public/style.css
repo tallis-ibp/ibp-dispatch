@@ -890,11 +890,35 @@ input:focus, select:focus, textarea:focus {
 .section-group {
   margin-bottom: 24px;
 }
+.section-group.collapsed .section-grid { display: none; }
+.section-group.collapsed .section-heading-caret { transform: rotate(-90deg); }
 .section-heading {
   display: flex;
   align-items: center;
   gap: 8px;
   margin-bottom: 10px;
+}
+.section-heading.toggle {
+  cursor: pointer;
+  user-select: none;
+  padding: 6px 0;
+  border-radius: var(--radius-sm);
+}
+.section-heading.toggle:hover .section-heading-label { color: var(--ink-900); }
+.section-heading-caret {
+  color: var(--ink-400);
+  transition: transform 180ms ease;
+  display: inline-flex;
+}
+.section-heading-caret i { font-size: 16px; }
+.section-heading-spacer { flex: 1; }
+
+/* ─── Badge group (used in drawer header) ───────────────────────── */
+.badge-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  margin-top: 4px;
 }
 .section-heading-label {
   font-size: 12px;
