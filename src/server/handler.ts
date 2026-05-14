@@ -13,7 +13,7 @@ import { handleGetBrief, handleGenerateBrief, handleApproveBrief } from './route
 import { handleGetProposals, handleGenerateProposals, handleUpdateProposal } from './routes/proposals.js';
 import { handleGetFlags, handleResolveFlag, handleTeachPhrase } from './routes/flags.js';
 import { handleGetPhotos } from './routes/photos.js';
-import { handleGetCrews, handleUpdateCrew } from './routes/crews.js';
+import { handleGetCrews, handleCreateCrew, handleUpdateCrew } from './routes/crews.js';
 import { refreshMonday } from '../monday/refreshMonday.js';
 import { validateSession, extractTokenFromRequest } from '../middleware/auth.js';
 import { generalLimiter, loginLimiter } from '../middleware/rateLimit.js';
@@ -127,6 +127,10 @@ export async function requestHandler(req: IncomingMessage, res: ServerResponse):
       }
 
       if (path === '/api/crews' && req.method === 'GET') { await handleGetCrews(req, res); return; }
+      if (path === '/api/crews' && req.method === 'POST') {
+        const body = await readBody(req) as { key: string; displayName: string; telegramGroupId?: string; language?: string };
+        await handleCreateCrew(req, res, body); return;
+      }
       if (path.startsWith('/api/crews/') && req.method === 'PATCH') {
         const key = path.slice('/api/crews/'.length);
         const body = await readBody(req) as { telegramGroupId?: string; language?: string };

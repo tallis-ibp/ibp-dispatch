@@ -91,6 +91,10 @@
         <span style="font-size:13px;color:var(--md-on-surface-variant);">
           Add bot to group → send <code style="background:var(--md-primary-container);padding:2px 6px;border-radius:6px;font-size:12px;color:var(--md-primary)">/myid</code>
         </span>
+        <button class="btn btn-primary" onclick="openAddCrewModal()">
+          <span class="material-symbols-outlined">add</span>
+          Add Crew
+        </button>
       </div>
     </div>
   </header>
@@ -272,8 +276,14 @@
           Add @IBP_DIspatchBot to the crew's Telegram group, then have someone send <code>/myid</code>.<br>
           The bot will reply with the Chat ID — paste it below.
         </p>
-        <label class="modal-label">Telegram Chat ID</label>
-        <input id="modal-group-id" class="modal-input" type="text" placeholder="-100123456789" />
+        <div id="modal-create-fields" class="hidden">
+          <label class="modal-label">Crew Name</label>
+          <input id="modal-display-name" class="modal-input" type="text" placeholder="e.g. Crew Alpha" />
+          <label class="modal-label">Crew Key <span style="font-size:11px;color:var(--md-on-surface-variant)">(short ID, no spaces)</span></label>
+          <input id="modal-crew-key" class="modal-input" type="text" placeholder="e.g. alpha" />
+        </div>
+        <label class="modal-label">Telegram Chat ID <span style="font-size:11px;color:var(--md-on-surface-variant)">(optional — add later)</span></label>
+        <input id="modal-group-id" class="modal-input" type="text" placeholder="-100123456789 or personal ID" />
         <label class="modal-label">Language</label>
         <select id="modal-lang" class="modal-input">
           <option value="en">English</option>

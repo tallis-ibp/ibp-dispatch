@@ -2,6 +2,7 @@
 
 let allCrews = [];
 let editingCrewKey = null;
+let isCreatingCrew = false;
 
 async function loadCrews() {
   const loading = document.getElementById('crews-loading');
@@ -30,7 +31,11 @@ function renderCrews(crews) {
   content.classList.remove('hidden');
 
   if (!crews.length) {
-    content.innerHTML = '<div class="empty-state"><span class="material-symbols-outlined">group_off</span>No crews found.</div>';
+    content.innerHTML = `
+      <div class="empty-state">
+        <span class="material-symbols-outlined">group_off</span>
+        No crews yet. Click <strong>Add Crew</strong> to create the first one.
+      </div>`;
     return;
   }
 
@@ -43,7 +48,9 @@ function renderCrews(crews) {
       ? '<span class="badge badge-high">High reliability</span>'
       : crew.reliability === 'low'
         ? '<span class="badge badge-low">Low reliability</span>'
-        : `<span class="badge badge-normal">${crew.reliability || 'Medium'}</span>`;
+        : crew.reliability
+          ? `<span class="badge badge-normal">${crew.reliability}</span>`
+          : '';
 
     return `
       <div class="crew-mgmt-card ${isConnected ? 'connected' : ''}" id="crew-card-${crew.key}">
@@ -65,7 +72,7 @@ function renderCrews(crews) {
           </div>
           ${isConnected ? `
           <div class="crew-detail-row">
-            <span class="crew-detail-label">Group ID</span>
+            <span class="crew-detail-label">Chat ID</span>
             <span class="crew-group-id">${crew.telegram_group_id}</span>
           </div>` : ''}
           ${reliabilityBadge ? `<div class="crew-detail-row"><span class="crew-detail-label">Reliability</span>${reliabilityBadge}</div>` : ''}
@@ -100,43 +107,95 @@ function safeJson(val, fallback) {
   catch { return fallback; }
 }
 
+function openAddCrewModal() {
+  isCreatingCrew = true;
+  editingCrewKey = null;
+  document.getElementById('modal-crew-name').textContent = 'Add New Crew';
+  document.getElementById('modal-create-fields').classList.remove('hidden');
+  document.getElementById('modal-display-name').value = '';
+  document.getElementById('modal-crew-key').value = '';
+  document.getElementById('modal-group-id').value = '';
+  document.getElementById('modal-lang').value = 'en';
+
+  // Auto-generate key from name
+  document.getElementById('modal-display-name').oninput = function() {
+    const key = this.value.toLowerCase().replace(/[^a-z0-9]+/g, '_').replace(/^_|_$/g, '');
+    document.getElementById('modal-crew-key').value = key;
+  };
+
+  document.getElementById('crew-setup-modal').classList.remove('hidden');
+}
+
 function openCrewSetupFromCrews(key, name, groupId, lang) {
+  isCreatingCrew = false;
   editingCrewKey = key;
   document.getElementById('modal-crew-name').textContent = `Connect ${name}`;
+  document.getElementById('modal-create-fields').classList.add('hidden');
   document.getElementById('modal-group-id').value = groupId || '';
   document.getElementById('modal-lang').value = lang || 'en';
   document.getElementById('crew-setup-modal').classList.remove('hidden');
 }
 
-async function testCrewMessage(key, groupId) {
-  if (typeof toast === 'function') toast(`Sending test to ${key}…`);
+async function testCrewMessage(key, chatId) {
+  try {
+    const res = await fetch(`/api/crews/${key}/test`, { method: 'POST' });
+    if (res.ok) {
+      toast(`Test message sent to ${key}`, 'success');
+    } else {
+      toast('Test failed — check server logs', 'error');
+    }
+  } catch {
+    toast('Test failed', 'error');
+  }
 }
 
-// Override the saveCrewSetup from app.js to refresh the crews tab
+// Override the saveCrewSetup from app.js to handle both create and edit
 const _origSaveCrewSetup = window.saveCrewSetup;
 window.saveCrewSetup = async function() {
   const groupId = document.getElementById('modal-group-id').value.trim();
   const lang = document.getElementById('modal-lang').value;
-  const key = editingCrewKey || window._editingCrewKey;
-
-  if (!key) { if (_origSaveCrewSetup) return _origSaveCrewSetup(); return; }
-
   const btn = document.getElementById('modal-save-btn');
   btn.disabled = true;
   btn.textContent = 'Saving…';
 
   try {
-    const res = await fetch(`/api/crews/${key}`, {
-      method: 'PATCH',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ telegramGroupId: groupId, language: lang }),
-    });
-    if (!res.ok) throw new Error('Failed');
-    document.getElementById('crew-setup-modal').classList.add('hidden');
-    if (typeof toast === 'function') toast('Crew updated', 'success');
+    if (isCreatingCrew) {
+      const displayName = document.getElementById('modal-display-name').value.trim();
+      const key = document.getElementById('modal-crew-key').value.trim();
+      if (!displayName || !key) {
+        toast('Name and key are required', 'error');
+        return;
+      }
+      const res = await fetch('/api/crews', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ key, displayName, telegramGroupId: groupId || undefined, language: lang }),
+      });
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({}));
+        throw new Error(err.error || 'Failed');
+      }
+      document.getElementById('crew-setup-modal').classList.add('hidden');
+      toast(`Crew "${displayName}" created`, 'success');
+    } else if (editingCrewKey) {
+      const res = await fetch(`/api/crews/${editingCrewKey}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ telegramGroupId: groupId, language: lang }),
+      });
+      if (!res.ok) throw new Error('Failed');
+      document.getElementById('crew-setup-modal').classList.add('hidden');
+      toast('Crew updated', 'success');
+    } else {
+      // Opened from Dispatch tab brief card — delegate to original
+      if (_origSaveCrewSetup) return _origSaveCrewSetup();
+      return;
+    }
+    isCreatingCrew = false;
+    editingCrewKey = null;
     await loadCrews();
-  } catch {
-    if (typeof toast === 'function') toast('Save failed', 'error');
+  } catch (err) {
+    toast(err.message || 'Save failed', 'error');
   } finally {
     btn.disabled = false;
     btn.textContent = 'Save';
@@ -145,18 +204,15 @@ window.saveCrewSetup = async function() {
 
 // Hook into tab switching to load crews when tab opens
 document.addEventListener('DOMContentLoaded', () => {
-  // Tab switching — extend the existing tab nav handler
   const tabBtns = document.querySelectorAll('.tab-nav .tab-btn');
   tabBtns.forEach(btn => {
     btn.addEventListener('click', () => {
       const tab = btn.dataset.tab;
 
-      // Hide all panels + action groups
       document.querySelectorAll('.tab-panel').forEach(p => p.classList.add('hidden'));
       document.querySelectorAll('.tab-actions').forEach(a => a.classList.add('hidden'));
       tabBtns.forEach(b => b.classList.remove('active'));
 
-      // Show selected
       const panel = document.getElementById(`tab-${tab}`);
       if (panel) panel.classList.remove('hidden');
 
@@ -165,7 +221,6 @@ document.addEventListener('DOMContentLoaded', () => {
 
       btn.classList.add('active');
 
-      // Load crews on first visit
       if (tab === 'crews') loadCrews();
     });
   });

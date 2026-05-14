@@ -1,6 +1,30 @@
 import type { IncomingMessage, ServerResponse } from 'http';
 import { getSql } from '../../db/client.js';
 
+export async function handleCreateCrew(
+  req: IncomingMessage,
+  res: ServerResponse,
+  body: { key: string; displayName: string; telegramGroupId?: string; language?: string }
+): Promise<void> {
+  const { key, displayName, telegramGroupId, language } = body;
+  if (!key || !displayName) {
+    res.writeHead(400, { 'Content-Type': 'application/json' });
+    res.end(JSON.stringify({ error: 'key and displayName are required' }));
+    return;
+  }
+  const sql = getSql();
+  await sql`
+    INSERT INTO crews (key, display_name, telegram_group_id, language)
+    VALUES (${key}, ${displayName}, ${telegramGroupId ?? null}, ${language ?? 'en'})
+    ON CONFLICT (key) DO UPDATE SET
+      display_name = EXCLUDED.display_name,
+      telegram_group_id = EXCLUDED.telegram_group_id,
+      language = EXCLUDED.language
+  `;
+  res.writeHead(201, { 'Content-Type': 'application/json' });
+  res.end(JSON.stringify({ ok: true }));
+}
+
 export async function handleGetCrews(req: IncomingMessage, res: ServerResponse): Promise<void> {
   const sql = getSql();
   const crews = await sql`SELECT * FROM crews ORDER BY key`;
