@@ -15,7 +15,7 @@ import { handleGetFlags, handleGetFlagDetail, handleResolveFlag, handleTeachPhra
 import { handleGetPhotos, handleGetPhotoImage } from './routes/photos.js';
 import {
   handleGetCrews, handleCreateCrew, handleUpdateCrew, handleTestCrewMessage,
-  handleGetCrewDetail, handleGetRecentChats,
+  handleGetCrewDetail, handleGetRecentChats, handleDeleteCrew,
 } from './routes/crews.js';
 import { handleGetJob, handleGetMaterialStatus, handleSetMaterialStatus } from './routes/jobs.js';
 import {
@@ -152,8 +152,12 @@ export async function requestHandler(req: IncomingMessage, res: ServerResponse):
       }
       if (path.startsWith('/api/crews/') && req.method === 'PATCH') {
         const key = path.slice('/api/crews/'.length);
-        const body = await readBody(req) as { telegramGroupId?: string; language?: string };
+        const body = await readBody(req) as Parameters<typeof handleUpdateCrew>[3];
         await handleUpdateCrew(req, res, key, body); return;
+      }
+      if (path.startsWith('/api/crews/') && req.method === 'DELETE') {
+        const key = path.slice('/api/crews/'.length);
+        await handleDeleteCrew(req, res, key); return;
       }
 
       // Jobs

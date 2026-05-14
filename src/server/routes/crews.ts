@@ -83,42 +83,89 @@ export async function handleGetCrewDetail(
   }));
 }
 
+interface UpdateCrewBody {
+  displayName?: string;
+  telegramGroupId?: string | null;
+  language?: string;
+  reliability?: 'high' | 'medium' | 'low' | null;
+  strengths?: string[];
+  cautions?: string[];
+}
+
 export async function handleUpdateCrew(
   req: IncomingMessage,
   res: ServerResponse,
   key: string,
-  body: { telegramGroupId?: string; language?: string }
+  body: UpdateCrewBody,
 ): Promise<void> {
   if (!key) {
     res.writeHead(400, { 'Content-Type': 'application/json' });
     res.end(JSON.stringify({ error: 'crew key is required' }));
     return;
   }
-  if (body.telegramGroupId === undefined && body.language === undefined) {
+  const fields = ['displayName', 'telegramGroupId', 'language', 'reliability', 'strengths', 'cautions'] as const;
+  const provided = fields.filter((f) => body[f] !== undefined);
+  if (provided.length === 0) {
     res.writeHead(400, { 'Content-Type': 'application/json' });
-    res.end(JSON.stringify({ error: 'at least one of telegramGroupId or language is required' }));
+    res.end(JSON.stringify({ error: 'at least one field is required' }));
+    return;
+  }
+  if (body.reliability !== undefined && body.reliability !== null
+      && !['high', 'medium', 'low'].includes(body.reliability)) {
+    res.writeHead(400, { 'Content-Type': 'application/json' });
+    res.end(JSON.stringify({ error: 'reliability must be high, medium, low, or null' }));
+    return;
+  }
+  if (body.strengths !== undefined && !Array.isArray(body.strengths)) {
+    res.writeHead(400, { 'Content-Type': 'application/json' });
+    res.end(JSON.stringify({ error: 'strengths must be an array of strings' }));
+    return;
+  }
+  if (body.cautions !== undefined && !Array.isArray(body.cautions)) {
+    res.writeHead(400, { 'Content-Type': 'application/json' });
+    res.end(JSON.stringify({ error: 'cautions must be an array of strings' }));
+    return;
+  }
+
+  // Coalesce undefined → keep existing value via COALESCE(${value}::type, column).
+  // Postgres tagged-template parameters need explicit casts when nullable.
+  const sql = getSql();
+  await sql`
+    UPDATE crews SET
+      display_name      = COALESCE(${body.displayName ?? null}::text, display_name),
+      telegram_group_id = CASE WHEN ${body.telegramGroupId !== undefined}::boolean
+                               THEN ${body.telegramGroupId ?? null}::text
+                               ELSE telegram_group_id END,
+      language          = COALESCE(${body.language ?? null}::text, language),
+      reliability       = CASE WHEN ${body.reliability !== undefined}::boolean
+                               THEN ${body.reliability ?? null}::text
+                               ELSE reliability END,
+      strengths         = COALESCE(${body.strengths ? JSON.stringify(body.strengths) : null}::text, strengths),
+      cautions          = COALESCE(${body.cautions  ? JSON.stringify(body.cautions)  : null}::text, cautions)
+    WHERE key = ${key}
+  `;
+  res.writeHead(200, { 'Content-Type': 'application/json' });
+  res.end(JSON.stringify({ ok: true }));
+}
+
+export async function handleDeleteCrew(
+  req: IncomingMessage,
+  res: ServerResponse,
+  key: string,
+): Promise<void> {
+  if (!key) {
+    res.writeHead(400, { 'Content-Type': 'application/json' });
+    res.end(JSON.stringify({ error: 'crew key is required' }));
     return;
   }
   const sql = getSql();
-  if (body.telegramGroupId !== undefined && body.language !== undefined) {
-    await sql`
-      UPDATE crews
-      SET telegram_group_id = ${body.telegramGroupId}, language = ${body.language}
-      WHERE key = ${key}
-    `;
-  } else if (body.telegramGroupId !== undefined) {
-    await sql`
-      UPDATE crews
-      SET telegram_group_id = ${body.telegramGroupId}
-      WHERE key = ${key}
-    `;
-  } else {
-    await sql`
-      UPDATE crews
-      SET language = ${body.language!}
-      WHERE key = ${key}
-    `;
+  const [crew] = await sql`SELECT key FROM crews WHERE key = ${key}`;
+  if (!crew) {
+    res.writeHead(404, { 'Content-Type': 'application/json' });
+    res.end(JSON.stringify({ error: 'Crew not found' }));
+    return;
   }
+  await sql`DELETE FROM crews WHERE key = ${key}`;
   res.writeHead(200, { 'Content-Type': 'application/json' });
   res.end(JSON.stringify({ ok: true }));
 }

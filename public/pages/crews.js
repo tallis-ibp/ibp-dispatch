@@ -126,51 +126,113 @@ function buildCrewMgmtCard(crew) {
 async function openCrewProfileDrawer(crew) {
   const body = IBP.el('div');
 
-  const strengths = IBP.safeJson(crew.strengths, []);
-  const cautions = IBP.safeJson(crew.cautions, []);
+  // State the drawer manages locally; sent on Save
+  const state = {
+    displayName: crew.display_name,
+    language: crew.language || 'en',
+    reliability: crew.reliability || '',
+    strengths: IBP.safeJson(crew.strengths, []),
+    cautions:  IBP.safeJson(crew.cautions,  []),
+  };
 
-  body.appendChild(IBP.drawerRow('Key', crew.key));
-  body.appendChild(IBP.drawerRow('Language',
-    IBP.el('span', 'badge neutral', (crew.language || 'en').toUpperCase())));
+  // Display name
+  body.appendChild(buildInput('Display name', state.displayName, (v) => { state.displayName = v; }));
 
-  if (crew.reliability) {
-    const rel = crew.reliability;
-    body.appendChild(IBP.drawerRow('Reliability',
-      IBP.el('span', `badge ${rel === 'high' ? 'success' : rel === 'low' ? 'danger' : 'warning'}`, rel)));
-  }
+  // Language dropdown
+  body.appendChild(buildSelect('Language', state.language, [
+    { value: 'en', label: 'English' },
+    { value: 'es', label: 'Español' },
+    { value: 'pt', label: 'Português' },
+  ], (v) => { state.language = v; }));
 
-  body.appendChild(IBP.drawerRow('Telegram group', crew.telegram_group_id || 'Not set'));
+  // Reliability dropdown (with "unset")
+  body.appendChild(buildSelect('Reliability', state.reliability, [
+    { value: '',       label: '— Not set —' },
+    { value: 'high',   label: 'High · trusted for critical work' },
+    { value: 'medium', label: 'Medium · standard reliability' },
+    { value: 'low',    label: 'Low · needs supervision or backup' },
+  ], (v) => { state.reliability = v; }));
 
-  if (strengths.length) {
-    const chips = IBP.el('div');
-    chips.style.cssText = 'display:flex;flex-wrap:wrap;gap:4px;';
-    for (const s of strengths) chips.appendChild(IBP.el('span', 'badge neutral', s));
-    body.appendChild(IBP.drawerRow('Skills', chips, { column: true }));
-  }
-  if (cautions.length) {
-    const chips = IBP.el('div');
-    chips.style.cssText = 'display:flex;flex-direction:column;gap:4px;';
-    for (const c of cautions) {
-      const row = IBP.el('div');
-      row.style.cssText = 'font-size:12px;color:var(--warning-700);background:var(--warning-100);border:1px solid var(--warning-200);padding:6px 8px;border-radius:4px;';
-      row.textContent = c;
-      chips.appendChild(row);
-    }
-    body.appendChild(IBP.drawerRow('Cautions', chips, { column: true }));
-  }
+  // Skills chip input
+  body.appendChild(buildChipInput('Skills', state.strengths,
+    'What this crew is good at (used by the AI to assign jobs). Type and press Enter to add.',
+    (next) => { state.strengths = next; }));
 
-  const sub = IBP.el('div');
-  sub.style.cssText = 'font-size:11px;color:var(--ink-400);margin-top:14px;padding:10px;background:var(--paper-alt);border-radius:6px;line-height:1.5;';
-  sub.textContent = 'Reliability, language and skills are used by the AI scheduling agent to assign jobs. Edit them in the database; they are read-only here.';
-  body.appendChild(sub);
+  // Cautions chip input
+  body.appendChild(buildChipInput('Cautions', state.cautions,
+    'Things the AI should avoid for this crew (e.g. "no gooseneck jobs"). Press Enter to add.',
+    (next) => { state.cautions = next; }, 'danger'));
 
-  const footer = IBP.el('div');
-  const editBtn = IBP.el('button', 'btn btn-outline btn-block', crew.telegram_group_id ? 'Edit Telegram group' : 'Connect Telegram group');
-  editBtn.addEventListener('click', () => {
+  // Telegram group section
+  const tgRow = IBP.el('div', 'input-row');
+  tgRow.appendChild(IBP.el('label', 'input-label', 'Telegram group'));
+  const tgWrap = IBP.el('div');
+  tgWrap.style.cssText = 'display:flex;gap:6px;align-items:center;';
+  const tgVal = IBP.el('span');
+  tgVal.style.cssText = 'flex:1;font-family:JetBrains Mono,ui-monospace,Menlo,monospace;font-size:12px;color:var(--ink-700);';
+  tgVal.textContent = crew.telegram_group_id || 'Not set';
+  const tgBtn = IBP.el('button', 'btn btn-outline btn-sm', crew.telegram_group_id ? 'Change' : 'Connect');
+  tgBtn.addEventListener('click', () => {
     IBP.closeDrawer();
     IBP.openCrewSetupForEdit(crew);
   });
-  footer.appendChild(editBtn);
+  tgWrap.appendChild(tgVal);
+  tgWrap.appendChild(tgBtn);
+  tgRow.appendChild(tgWrap);
+  body.appendChild(tgRow);
+
+  // Helper note
+  const note = IBP.el('div');
+  note.style.cssText = 'font-size:11px;color:var(--ink-500);margin-top:8px;padding:10px;background:var(--paper-alt);border:1px solid var(--border-soft);border-radius:6px;line-height:1.5;';
+  note.textContent = 'Skills and reliability feed the AI scheduling agent every morning. Be specific (e.g. "gooseneck capable", "pool deck install") — vague tags hurt the assignment quality.';
+  body.appendChild(note);
+
+  // Footer: Save + Delete
+  const footer = IBP.el('div');
+  const saveBtn = IBP.el('button', 'btn btn-primary btn-block', 'Save changes');
+  saveBtn.addEventListener('click', async () => {
+    saveBtn.disabled = true;
+    saveBtn.innerHTML = '<span class="spinner"></span><span>Saving…</span>';
+    try {
+      await IBP.fetchJson(`/api/crews/${crew.key}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          displayName: state.displayName,
+          language: state.language,
+          reliability: state.reliability || null,
+          strengths: state.strengths,
+          cautions:  state.cautions,
+        }),
+      });
+      IBP.toast('Crew updated', 'success');
+      IBP.closeDrawer();
+      IBP.render();
+    } catch (err) {
+      IBP.toast(err.message || 'Save failed', 'error');
+      saveBtn.disabled = false;
+      saveBtn.textContent = 'Save changes';
+    }
+  });
+  footer.appendChild(saveBtn);
+
+  const deleteBtn = IBP.el('button', 'btn btn-danger btn-block', 'Delete crew');
+  deleteBtn.addEventListener('click', async () => {
+    if (!confirm(`Delete "${crew.display_name}" permanently? This cannot be undone.`)) return;
+    deleteBtn.disabled = true;
+    deleteBtn.textContent = 'Deleting…';
+    try {
+      await IBP.fetchJson(`/api/crews/${crew.key}`, { method: 'DELETE' });
+      IBP.toast(`Deleted ${crew.display_name}`, 'success');
+      IBP.closeDrawer();
+      IBP.render();
+    } catch (err) {
+      IBP.toast(err.message || 'Delete failed', 'error');
+      deleteBtn.disabled = false;
+      deleteBtn.textContent = 'Delete crew';
+    }
+  });
+  footer.appendChild(deleteBtn);
 
   IBP.openDrawer({
     title: crew.display_name,
@@ -178,4 +240,88 @@ async function openCrewProfileDrawer(crew) {
     body,
     footer,
   });
+}
+
+// ─── Drawer form helpers ───────────────────────────────────────
+function buildInput(label, value, onChange) {
+  const wrap = IBP.el('div', 'input-row');
+  wrap.appendChild(IBP.el('label', 'input-label', label));
+  const input = IBP.el('input');
+  input.type = 'text';
+  input.value = value || '';
+  input.addEventListener('input', () => onChange(input.value));
+  wrap.appendChild(input);
+  return wrap;
+}
+
+function buildSelect(label, value, options, onChange) {
+  const wrap = IBP.el('div', 'input-row');
+  wrap.appendChild(IBP.el('label', 'input-label', label));
+  const sel = IBP.el('select');
+  for (const opt of options) {
+    const o = IBP.el('option', '', opt.label);
+    o.value = opt.value;
+    if (opt.value === value) o.selected = true;
+    sel.appendChild(o);
+  }
+  sel.addEventListener('change', () => onChange(sel.value));
+  wrap.appendChild(sel);
+  return wrap;
+}
+
+function buildChipInput(label, initialChips, help, onChange, variant = '') {
+  const wrap = IBP.el('div', 'input-row');
+  wrap.appendChild(IBP.el('label', 'input-label', label));
+  const container = IBP.el('div', 'chip-input');
+  const chips = [...initialChips];
+
+  const renderChips = () => {
+    // Clear all chip children but keep the input field
+    [...container.querySelectorAll('.chip')].forEach((c) => c.remove());
+    const inputField = container.querySelector('.chip-input-field');
+    for (const chip of chips) {
+      const c = IBP.el('span', `chip ${variant}`, chip);
+      const x = IBP.el('button', 'chip-remove');
+      x.type = 'button';
+      x.innerHTML = '<i class="ti ti-x"></i>';
+      x.addEventListener('click', () => {
+        const idx = chips.indexOf(chip);
+        if (idx >= 0) {
+          chips.splice(idx, 1);
+          onChange(chips);
+          renderChips();
+        }
+      });
+      c.appendChild(x);
+      container.insertBefore(c, inputField);
+    }
+  };
+
+  const inputField = IBP.el('input', 'chip-input-field');
+  inputField.type = 'text';
+  inputField.placeholder = chips.length ? '' : 'Type and press Enter…';
+  inputField.addEventListener('keydown', (e) => {
+    if (e.key === 'Enter' || e.key === ',') {
+      e.preventDefault();
+      const v = inputField.value.trim().replace(/,$/, '');
+      if (v && !chips.includes(v)) {
+        chips.push(v);
+        inputField.value = '';
+        inputField.placeholder = '';
+        onChange(chips);
+        renderChips();
+      }
+    } else if (e.key === 'Backspace' && !inputField.value && chips.length) {
+      chips.pop();
+      onChange(chips);
+      renderChips();
+      inputField.placeholder = chips.length ? '' : 'Type and press Enter…';
+    }
+  });
+  container.appendChild(inputField);
+  renderChips();
+  wrap.appendChild(container);
+
+  if (help) wrap.appendChild(IBP.el('div', 'chip-help', help));
+  return wrap;
 }

@@ -767,6 +767,70 @@ input:focus, select:focus, textarea:focus {
 }
 .crew-mgmt-actions .btn-outline { flex: 1; }
 
+/* ─── Chip input (skills, cautions) ─────────────────────────────── */
+.chip-input {
+  border: 1px solid var(--border-medium);
+  border-radius: var(--radius-md);
+  padding: 6px;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  background: var(--paper);
+  min-height: 40px;
+}
+.chip-input:focus-within {
+  border-color: var(--navy-700);
+  box-shadow: 0 0 0 3px var(--navy-50);
+}
+.chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 3px 4px 3px 9px;
+  background: var(--navy-100);
+  color: var(--navy-900);
+  border-radius: var(--radius-sm);
+  font-size: 12px;
+  font-weight: 500;
+}
+.chip.danger {
+  background: var(--warning-100);
+  color: var(--warning-700);
+  border: 1px solid var(--warning-200);
+}
+.chip-remove {
+  background: transparent;
+  border: 0;
+  color: inherit;
+  opacity: 0.6;
+  cursor: pointer;
+  padding: 0;
+  width: 16px;
+  height: 16px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 3px;
+}
+.chip-remove:hover { opacity: 1; background: rgba(0,0,0,0.08); }
+.chip-remove i { font-size: 13px; }
+.chip-input-field {
+  flex: 1;
+  min-width: 100px;
+  border: 0;
+  padding: 4px 6px;
+  outline: none;
+  font-size: 13px;
+  background: transparent;
+  width: auto !important;
+}
+.chip-input-field:focus { box-shadow: none; }
+.chip-help {
+  font-size: 11px;
+  color: var(--ink-400);
+  margin-top: 2px;
+}
+
 /* ─── Filter row ────────────────────────────────────────────────── */
 .filter-row {
   display: flex;
