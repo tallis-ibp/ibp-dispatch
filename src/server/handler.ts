@@ -9,7 +9,7 @@ import {
   handleCreateShareLink,
   handleRevokeShareLink,
 } from './routes/auth.js';
-import { handleGetBrief, handleGenerateBrief, handleApproveBrief } from './routes/briefs.js';
+import { handleGetBrief, handleGenerateBrief, handleApproveBrief, handleSendBriefToCrew } from './routes/briefs.js';
 import { handleGetProposals, handleGenerateProposals, handleUpdateProposal } from './routes/proposals.js';
 import { handleGetFlags, handleGetFlagDetail, handleResolveFlag, handleTeachPhrase } from './routes/flags.js';
 import { handleGetPhotos, handleGetPhotoImage } from './routes/photos.js';
@@ -202,6 +202,13 @@ export async function requestHandler(req: IncomingMessage, res: ServerResponse):
       if (path.startsWith('/api/briefs/') && path.endsWith('/approve') && req.method === 'POST') {
         const date = path.slice('/api/briefs/'.length).replace('/approve', '');
         await handleApproveBrief(req, res, date); return;
+      }
+      // /api/briefs/:date/crew/:crewKey — POST sends to single crew
+      {
+        const m = path.match(/^\/api\/briefs\/(\d{4}-\d{2}-\d{2})\/crew\/([^/]+)$/);
+        if (m && req.method === 'POST') {
+          await handleSendBriefToCrew(req, res, m[1], m[2]); return;
+        }
       }
       if (path === '/api/generate' && req.method === 'POST') {
         const body = await readBody(req) as { date: string };

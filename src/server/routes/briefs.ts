@@ -3,7 +3,7 @@ import { getSql } from '../../db/client.js';
 import { parseParams, dateParam } from '../../middleware/validate.js';
 import { z } from 'zod';
 import { generateBriefs } from '../../core/generateBriefs.js';
-import { dispatchBriefToCrews } from '../../telegram/dispatcher.js';
+import { dispatchBriefToCrews, dispatchBriefToCrew } from '../../telegram/dispatcher.js';
 
 function safeParse<T>(json: unknown, fallback: T): T {
   if (!json) return fallback;
@@ -115,6 +115,24 @@ export async function handleGenerateBrief(req: IncomingMessage, res: ServerRespo
 
   await generateBriefs(date);
   await handleGetBrief(req, res, date);
+}
+
+export async function handleSendBriefToCrew(
+  req: IncomingMessage,
+  res: ServerResponse,
+  date: string,
+  crewKey: string,
+): Promise<void> {
+  try {
+    const count = await dispatchBriefToCrew(date, crewKey);
+    res.writeHead(200, { 'Content-Type': 'application/json' });
+    res.end(JSON.stringify({ ok: true, sent: count }));
+  } catch (err) {
+    const msg = err instanceof Error ? err.message : String(err);
+    console.error(`[send-crew] ${crewKey} on ${date}: ${msg}`);
+    res.writeHead(400, { 'Content-Type': 'application/json' });
+    res.end(JSON.stringify({ error: msg }));
+  }
 }
 
 export async function handleApproveBrief(req: IncomingMessage, res: ServerResponse, date: string): Promise<void> {
