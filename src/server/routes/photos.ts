@@ -83,7 +83,16 @@ export async function handleGetPhotoImage(
     );
     if (!upstream.ok) throw new Error(`Telegram file HTTP ${upstream.status}`);
     const buf = Buffer.from(await upstream.arrayBuffer());
-    const contentType = upstream.headers.get('content-type') ?? 'image/jpeg';
+    // Telegram often returns application/octet-stream for photos.
+    // Override using file extension since the dashboard always treats these as images.
+    const ext = file.file_path.split('.').pop()?.toLowerCase();
+    const extMime: Record<string, string> = {
+      jpg: 'image/jpeg', jpeg: 'image/jpeg', png: 'image/png',
+      webp: 'image/webp', gif: 'image/gif', heic: 'image/heic',
+    };
+    const upstreamCt = upstream.headers.get('content-type') ?? '';
+    const contentType = (ext && extMime[ext])
+      || (upstreamCt.startsWith('image/') ? upstreamCt : 'image/jpeg');
     res.writeHead(200, {
       'Content-Type': contentType,
       'Content-Length': String(buf.length),

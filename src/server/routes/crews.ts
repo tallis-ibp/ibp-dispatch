@@ -131,14 +131,18 @@ export async function handleGetRecentChats(
   res: ServerResponse,
 ): Promise<void> {
   const sql = getSql();
-  const rows = await sql<{ chatId: string; sender: string | null; lastSeen: string; source: string }[]>`
-    SELECT chat_id AS "chatId", sender, MAX(last_seen) AS "lastSeen", MAX(source) AS source
-    FROM (
-      SELECT chat_id, sender, received_at AS last_seen, 'photo' AS source FROM photos WHERE chat_id IS NOT NULL
-      UNION ALL
-      SELECT chat_id, sender, timestamp     AS last_seen, 'flag'  AS source FROM flags  WHERE chat_id IS NOT NULL
-    ) all_chats
-    GROUP BY chat_id, sender
+  // Dedupe by chat_id (keep the most recent sender for each chat) and sort by recency.
+  const rows = await sql<{ chatId: string; sender: string | null; lastSeen: string }[]>`
+    SELECT "chatId", sender, "lastSeen" FROM (
+      SELECT DISTINCT ON (chat_id)
+        chat_id AS "chatId", sender, last_seen AS "lastSeen"
+      FROM (
+        SELECT chat_id, sender, received_at AS last_seen FROM photos WHERE chat_id IS NOT NULL
+        UNION ALL
+        SELECT chat_id, sender, timestamp     AS last_seen FROM flags  WHERE chat_id IS NOT NULL
+      ) all_chats
+      ORDER BY chat_id, last_seen DESC
+    ) dedup
     ORDER BY "lastSeen" DESC
     LIMIT 20
   `;

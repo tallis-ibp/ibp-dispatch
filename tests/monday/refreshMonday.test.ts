@@ -37,12 +37,17 @@ const sampleJob: Job = {
 describe('upsertJobsToDb', () => {
   beforeEach(() => { mockBegin.mockClear(); mockSql.mockClear(); });
 
-  it('calls sql.begin to run upserts in a transaction', async () => {
-    await upsertJobsToDb([sampleJob]);
-    expect(mockBegin).toHaveBeenCalledTimes(1);
+  // Phase 2.1 — sql.begin removed (PgBouncer transaction mode is unreliable for it).
+  // Sequential statements are now used instead.
+  it('runs one tagged-template upsert per job sequentially (no sql.begin)', async () => {
+    await upsertJobsToDb([sampleJob, { ...sampleJob, id: 'item-2', jobNumber: '600050' }]);
+    expect(mockBegin).not.toHaveBeenCalled();
+    // mockSql is called as a tagged template, once per job
+    expect(mockSql).toHaveBeenCalledTimes(2);
   });
 
   it('handles an empty job list without error', async () => {
     await expect(upsertJobsToDb([])).resolves.toBeUndefined();
+    expect(mockSql).not.toHaveBeenCalled();
   });
 });
