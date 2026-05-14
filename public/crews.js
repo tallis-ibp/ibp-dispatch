@@ -117,10 +117,14 @@ function openAddCrewModal() {
   document.getElementById('modal-group-id').value = '';
   document.getElementById('modal-lang').value = 'en';
 
-  // Auto-generate key from name
+  // Auto-generate key from name only while key hasn't been manually edited
+  const keyField = document.getElementById('modal-crew-key');
+  let keyManuallyEdited = false;
+  keyField.oninput = () => { keyManuallyEdited = true; };
   document.getElementById('modal-display-name').oninput = function() {
-    const key = this.value.toLowerCase().replace(/[^a-z0-9]+/g, '_').replace(/^_|_$/g, '');
-    document.getElementById('modal-crew-key').value = key;
+    if (!keyManuallyEdited) {
+      keyField.value = this.value.toLowerCase().replace(/[^a-z0-9]+/g, '_').replace(/^_|_$/g, '');
+    }
   };
 
   document.getElementById('crew-setup-modal').classList.remove('hidden');
