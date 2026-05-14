@@ -50,6 +50,23 @@ document.addEventListener("DOMContentLoaded", async () => {
   document.getElementById("btn-generate").addEventListener("click", onGenerate);
   document.getElementById("btn-approve-all").addEventListener("click", onApproveAll);
 
+  // Sync Monday button
+  const syncBtn = document.getElementById("btn-sync-monday");
+  if (syncBtn) {
+    syncBtn.addEventListener("click", async () => {
+      syncBtn.disabled = true;
+      syncBtn.querySelector('.material-symbols-outlined').style.animation = 'spin 0.75s linear infinite';
+      try {
+        await fetch('/api/sync', { method: 'POST' });
+        showToast('Monday sync complete', 'success');
+      } catch { showToast('Sync failed', 'error'); }
+      finally {
+        syncBtn.disabled = false;
+        syncBtn.querySelector('.material-symbols-outlined').style.animation = '';
+      }
+    });
+  }
+
   // Poll photos + flags every 30 s
   setInterval(loadPhotos, 30_000);
   setInterval(loadFlags, 30_000);

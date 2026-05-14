@@ -5,24 +5,25 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>IBP Dispatch</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;500;700&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20,400,0,0" rel="stylesheet">
   <link rel="stylesheet" href="/style.css">
 </head>
 <body>
 
-  <!-- Login screen — shown when no valid session -->
+  <!-- Login screen -->
   <div id="login-screen" style="display:none;">
     <div class="login-container">
       <div class="login-brand">
         <div class="login-logo">IBP</div>
-        <div class="login-subtitle">CREW DISPATCH</div>
+        <div class="login-subtitle">Crew Dispatch</div>
       </div>
       <div class="login-card">
         <div class="login-icon">
-          <svg width="40" height="40" viewBox="0 0 40 40" fill="none">
-            <rect width="40" height="40" rx="12" fill="#eff6ff"/>
-            <path d="M20 8C13.373 8 8 13.373 8 20s5.373 12 12 12 12-5.373 12-12S26.627 8 20 8zm5.894 8.221l-1.97 9.289c-.145.658-.537.818-1.084.508l-3-2.21-1.447 1.394c-.16.16-.295.295-.605.295l.213-3.053 5.56-5.023c.242-.213-.054-.333-.373-.12l-6.871 4.326-2.962-.924c-.643-.204-.657-.643.136-.953l11.57-4.461c.537-.194 1.006.131.833.932z" fill="#2563eb"/>
-          </svg>
+          <div class="login-icon-circle">
+            <span class="material-symbols-outlined">send</span>
+          </div>
         </div>
         <h2>Sign in with Telegram</h2>
         <p>The bot will send you a secure one-time link. Link expires in 10 minutes.</p>
@@ -42,31 +43,54 @@
     </div>
     <div class="header-right">
       <nav class="tab-nav">
-        <button class="tab-btn active" data-tab="dispatch">Dispatch</button>
-        <button class="tab-btn" data-tab="schedule">Schedule</button>
-        <button class="tab-btn" data-tab="logistics">Logistics</button>
+        <button class="tab-btn active" data-tab="dispatch">
+          <span class="material-symbols-outlined">assignment</span>
+          <span class="tab-label">Dispatch</span>
+        </button>
+        <button class="tab-btn" data-tab="schedule">
+          <span class="material-symbols-outlined">auto_awesome</span>
+          <span class="tab-label">Schedule</span>
+        </button>
+        <button class="tab-btn" data-tab="logistics">
+          <span class="material-symbols-outlined">local_shipping</span>
+          <span class="tab-label">Logistics</span>
+        </button>
+        <button class="tab-btn" data-tab="crews">
+          <span class="material-symbols-outlined">groups</span>
+          <span class="tab-label">Crews</span>
+        </button>
       </nav>
+
       <div id="dispatch-actions" class="tab-actions">
-        <button id="btn-generate" class="btn btn-secondary">
-          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M3 12a9 9 0 0 1 9-9 9.75 9.75 0 0 1 6.74 2.74L21 8"/><path d="M21 3v5h-5"/><path d="M21 12a9 9 0 0 1-9 9 9.75 9.75 0 0 1-6.74-2.74L3 16"/><path d="M8 16H3v5"/></svg>
+        <button id="btn-generate" class="btn btn-secondary scheduler-only">
+          <span class="material-symbols-outlined">autorenew</span>
           Regenerate
         </button>
-        <button id="btn-approve-all" class="btn btn-primary">
-          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg>
+        <button id="btn-approve-all" class="btn btn-primary scheduler-only">
+          <span class="material-symbols-outlined">send</span>
           Approve &amp; Send All
         </button>
       </div>
       <div id="schedule-actions" class="tab-actions hidden">
-        <button id="btn-run-scheduler" class="btn btn-secondary">
-          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M3 12a9 9 0 0 1 9-9 9.75 9.75 0 0 1 6.74 2.74L21 8"/><path d="M21 3v5h-5"/><path d="M21 12a9 9 0 0 1-9 9 9.75 9.75 0 0 1-6.74-2.74L3 16"/><path d="M8 16H3v5"/></svg>
+        <button id="btn-sync-monday" class="btn-sync scheduler-only" title="Sync jobs from Monday.com">
+          <span class="material-symbols-outlined">sync</span>
+          Sync Monday
+        </button>
+        <button id="btn-run-scheduler" class="btn btn-secondary scheduler-only">
+          <span class="material-symbols-outlined">auto_awesome</span>
           Run Agent
         </button>
       </div>
       <div id="logistics-actions" class="tab-actions hidden">
-        <button id="btn-run-logistics" class="btn btn-secondary">
-          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M3 12a9 9 0 0 1 9-9 9.75 9.75 0 0 1 6.74 2.74L21 8"/><path d="M21 3v5h-5"/><path d="M21 12a9 9 0 0 1-9 9 9.75 9.75 0 0 1-6.74-2.74L3 16"/><path d="M8 16H3v5"/></svg>
+        <button id="btn-run-logistics" class="btn btn-secondary scheduler-only">
+          <span class="material-symbols-outlined">route</span>
           Build Route Plan
         </button>
+      </div>
+      <div id="crews-actions" class="tab-actions hidden">
+        <span style="font-size:13px;color:var(--md-on-surface-variant);">
+          Add bot to group → send <code style="background:var(--md-primary-container);padding:2px 6px;border-radius:6px;font-size:12px;color:var(--md-primary)">/myid</code>
+        </span>
       </div>
     </div>
   </header>
@@ -83,20 +107,50 @@
         <div id="brief-content" class="crew-list hidden"></div>
       </main>
       <aside class="panel sidebar-panel" id="photos-panel">
-        <h2 class="panel-title">Incoming Photos</h2>
+        <h2 class="panel-title">
+          <span class="material-symbols-outlined">photo_camera</span>
+          Incoming Photos
+        </h2>
         <div id="photos-feed">
-          <div class="empty-state">No photos yet today.</div>
+          <div class="empty-state">
+            <span class="material-symbols-outlined">photo_library</span>
+            No photos yet today.
+          </div>
         </div>
       </aside>
       <aside class="panel sidebar-panel" id="flags-panel">
         <h2 class="panel-title">
+          <span class="material-symbols-outlined">flag</span>
           Unknown Messages
           <span id="flags-badge" class="flags-badge hidden">0</span>
         </h2>
         <div id="flags-feed">
-          <div class="empty-state">No unknown messages.</div>
+          <div class="empty-state">
+            <span class="material-symbols-outlined">chat_bubble</span>
+            No unknown messages.
+          </div>
         </div>
       </aside>
+    </div>
+  </div>
+
+  <!-- SCHEDULE TAB -->
+  <div id="tab-schedule" class="tab-panel hidden">
+    <div class="layout layout-single">
+      <main class="panel" id="proposals-panel">
+        <div class="panel-header">
+          <h2 class="panel-title">
+            <span class="material-symbols-outlined">auto_awesome</span>
+            Schedule Proposals
+          </h2>
+          <p class="panel-subtitle">AI-generated · Awaiting your review</p>
+        </div>
+        <div id="proposals-loading" class="loading hidden">
+          <div class="loading-spinner"></div>
+          Running scheduling agent…
+        </div>
+        <div id="proposals-content"></div>
+      </main>
     </div>
   </div>
 
@@ -105,7 +159,10 @@
     <div class="layout layout-single">
       <main class="panel" id="logistics-panel">
         <div class="panel-header">
-          <h2 class="panel-title">Driver Route Plan</h2>
+          <h2 class="panel-title">
+            <span class="material-symbols-outlined">local_shipping</span>
+            Driver Route Plan
+          </h2>
           <p class="panel-subtitle">Today's runs for Noel · Approve to send via Telegram</p>
         </div>
         <div id="logistics-loading" class="loading hidden">
@@ -117,26 +174,29 @@
     </div>
   </div>
 
-  <!-- SCHEDULE TAB -->
-  <div id="tab-schedule" class="tab-panel hidden">
+  <!-- CREWS TAB -->
+  <div id="tab-crews" class="tab-panel hidden">
     <div class="layout layout-single">
-      <main class="panel" id="proposals-panel">
+      <main class="panel" id="crews-panel">
         <div class="panel-header">
-          <h2 class="panel-title">Schedule Proposals</h2>
-          <p class="panel-subtitle">Agent-generated · Awaiting your review</p>
+          <h2 class="panel-title">
+            <span class="material-symbols-outlined">groups</span>
+            Crew Telegram Groups
+          </h2>
+          <p class="panel-subtitle">Connect each crew's Telegram group to enable bot dispatch</p>
         </div>
-        <div id="proposals-loading" class="loading hidden">
+        <div id="crews-loading" class="loading">
           <div class="loading-spinner"></div>
-          Running scheduling agent…
+          Loading crews…
         </div>
-        <div id="proposals-content"></div>
+        <div id="crews-content" class="crews-grid hidden"></div>
       </main>
     </div>
   </div>
 
   <!-- Chat FAB -->
   <button id="chat-fab" class="chat-fab" onclick="toggleChat()" title="Dispatch Assistant">
-    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
+    <span class="material-symbols-outlined">chat</span>
   </button>
   <div id="chat-panel" class="chat-panel hidden">
     <div class="chat-header">
@@ -145,7 +205,7 @@
         <span class="chat-subtitle">Ask anything about today's operations</span>
       </div>
       <button class="chat-close" onclick="toggleChat()">
-        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+        <span class="material-symbols-outlined">close</span>
       </button>
     </div>
     <div id="chat-messages" class="chat-messages">
@@ -156,7 +216,9 @@
     </div>
     <div class="chat-input-row">
       <input id="chat-input" class="chat-input" type="text" placeholder="Ask about today's operations…" />
-      <button id="chat-send" class="chat-send-btn" onclick="sendChat()">Send</button>
+      <button id="chat-send" class="chat-send-btn" onclick="sendChat()">
+        <span class="material-symbols-outlined">send</span>
+      </button>
     </div>
   </div>
 
@@ -168,7 +230,7 @@
       <div class="modal-header">
         <span class="modal-title">Teach Bot</span>
         <button class="modal-close" onclick="closeTeachModal()">
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+          <span class="material-symbols-outlined">close</span>
         </button>
       </div>
       <div class="modal-body">
@@ -190,7 +252,7 @@
         </select>
       </div>
       <div class="modal-footer">
-        <button class="btn btn-secondary" onclick="closeTeachModal()">Cancel</button>
+        <button class="btn btn-outlined" onclick="closeTeachModal()">Cancel</button>
         <button class="btn btn-primary" id="teach-save-btn" onclick="saveTeach()">Save &amp; Teach</button>
       </div>
     </div>
@@ -202,13 +264,13 @@
       <div class="modal-header">
         <span id="modal-crew-name" class="modal-title">Connect Crew</span>
         <button class="modal-close" onclick="closeCrewSetup()">
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+          <span class="material-symbols-outlined">close</span>
         </button>
       </div>
       <div class="modal-body">
         <p class="modal-hint">
-          Have the crew send <code>/myid</code> in their Telegram group with @aceibpbot added.<br>
-          The bot will reply with a Chat ID — paste it below.
+          Add @IBP_DIspatchBot to the crew's Telegram group, then have someone send <code>/myid</code>.<br>
+          The bot will reply with the Chat ID — paste it below.
         </p>
         <label class="modal-label">Telegram Chat ID</label>
         <input id="modal-group-id" class="modal-input" type="text" placeholder="-100123456789" />
@@ -220,7 +282,7 @@
         </select>
       </div>
       <div class="modal-footer">
-        <button class="btn btn-secondary" onclick="closeCrewSetup()">Cancel</button>
+        <button class="btn btn-outlined" onclick="closeCrewSetup()">Cancel</button>
         <button class="btn btn-primary" id="modal-save-btn" onclick="saveCrewSetup()">Save</button>
       </div>
     </div>
@@ -231,5 +293,6 @@
   <script src="/proposals.js"></script>
   <script src="/logistics.js"></script>
   <script src="/chat.js"></script>
+  <script src="/crews.js"></script>
 </body>
 </html>

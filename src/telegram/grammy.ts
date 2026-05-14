@@ -36,6 +36,13 @@ export function getBot(): Bot {
       });
     });
 
+    botInstance.command('myid', async (ctx) => {
+      await ctx.reply(
+        `Chat ID: \`${ctx.chat.id}\`\n\nPaste this into the Crews tab on the IBP dashboard to connect this group.`,
+        { parse_mode: 'Markdown' },
+      );
+    });
+
     botInstance.on('callback_query', handleCallbackQuery);
     botInstance.on('message', handleTextMessage);
 
