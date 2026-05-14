@@ -92,11 +92,19 @@ export async function handleTestCrewMessage(
   }
   const bot = getBot();
   await bot.init();
-  await bot.api.sendMessage(
-    crew.telegram_group_id,
-    `✅ IBP Dispatch test message\n\nBot is connected and working for *${crew.display_name}*.\n\nYou will receive job briefs here.`,
-    { parse_mode: 'Markdown' }
-  );
+  try {
+    await bot.api.sendMessage(
+      crew.telegram_group_id,
+      `✅ IBP Dispatch connected\n\nBot is working for *${crew.display_name as string}*.\n\nJob briefs will arrive here.`,
+      { parse_mode: 'Markdown' }
+    );
+  } catch (err) {
+    const msg = err instanceof Error ? err.message : String(err);
+    console.error(`[test] sendMessage failed for crew ${key} → ${crew.telegram_group_id}: ${msg}`);
+    res.writeHead(400, { 'Content-Type': 'application/json' });
+    res.end(JSON.stringify({ error: msg }));
+    return;
+  }
   res.writeHead(200, { 'Content-Type': 'application/json' });
   res.end(JSON.stringify({ ok: true }));
 }

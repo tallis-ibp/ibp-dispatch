@@ -3,6 +3,29 @@
 let allCrews = [];
 let editingCrewKey = null;
 let isCreatingCrew = false;
+let botUsername = null;
+
+async function loadBotUsername() {
+  if (botUsername) return botUsername;
+  try {
+    const res = await fetch('/api/debug');
+    const data = await res.json();
+    if (data.ok && data.bot) botUsername = data.bot;
+  } catch { /* ignore */ }
+  return botUsername;
+}
+
+function setBotLink(username) {
+  const link = document.getElementById('modal-bot-link');
+  if (!link) return;
+  if (username) {
+    link.href = `https://t.me/${username}?startgroup=1`;
+    link.textContent = `Add @${username} to that group`;
+  } else {
+    link.removeAttribute('href');
+    link.textContent = 'Add the bot to that group';
+  }
+}
 
 async function loadCrews() {
   const loading = document.getElementById('crews-loading');
@@ -116,6 +139,7 @@ function openAddCrewModal() {
   document.getElementById('modal-crew-key').value = '';
   document.getElementById('modal-group-id').value = '';
   document.getElementById('modal-lang').value = 'en';
+  loadBotUsername().then(setBotLink);
 
   // Auto-generate key from name only while key hasn't been manually edited
   const keyField = document.getElementById('modal-crew-key');
@@ -137,6 +161,7 @@ function openCrewSetupFromCrews(key, name, groupId, lang) {
   document.getElementById('modal-create-fields').classList.add('hidden');
   document.getElementById('modal-group-id').value = groupId || '';
   document.getElementById('modal-lang').value = lang || 'en';
+  loadBotUsername().then(setBotLink);
   document.getElementById('crew-setup-modal').classList.remove('hidden');
 }
 
@@ -144,9 +169,10 @@ async function testCrewMessage(key, chatId) {
   try {
     const res = await fetch(`/api/crews/${key}/test`, { method: 'POST' });
     if (res.ok) {
-      toast(`Test message sent to ${key}`, 'success');
+      toast(`Test message sent`, 'success');
     } else {
-      toast('Test failed — check server logs', 'error');
+      const body = await res.json().catch(() => ({}));
+      toast(body.error || 'Test failed — check server logs', 'error');
     }
   } catch {
     toast('Test failed', 'error');

@@ -272,10 +272,12 @@
         </button>
       </div>
       <div class="modal-body">
-        <p class="modal-hint">
-          Add @IBP_DIspatchBot to the crew's Telegram group, then have someone send <code>/myid</code>.<br>
-          The bot will reply with the Chat ID — paste it below.
-        </p>
+        <div class="modal-steps" id="modal-connect-steps">
+          <div class="modal-step"><span class="modal-step-num">1</span><span>Create a Telegram group and add all crew members</span></div>
+          <div class="modal-step"><span class="modal-step-num">2</span><a id="modal-bot-link" href="#" target="_blank" rel="noopener" class="modal-step-link">Add the bot to that group</a></div>
+          <div class="modal-step"><span class="modal-step-num">3</span><span>Type <code>/myid</code> in the group — the bot replies with the Chat ID</span></div>
+          <div class="modal-step"><span class="modal-step-num">4</span><span>Paste the Chat ID below and save</span></div>
+        </div>
         <div id="modal-create-fields" class="hidden">
           <label class="modal-label">Crew Name</label>
           <input id="modal-display-name" class="modal-input" type="text" placeholder="e.g. Crew Alpha" />
