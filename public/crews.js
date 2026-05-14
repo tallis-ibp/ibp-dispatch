@@ -109,7 +109,7 @@ function openCrewSetupFromCrews(key, name, groupId, lang) {
 }
 
 async function testCrewMessage(key, groupId) {
-  if (typeof showToast === 'function') showToast(`Sending test to ${key}…`);
+  if (typeof toast === 'function') toast(`Sending test to ${key}…`);
 }
 
 // Override the saveCrewSetup from app.js to refresh the crews tab
@@ -133,10 +133,10 @@ window.saveCrewSetup = async function() {
     });
     if (!res.ok) throw new Error('Failed');
     document.getElementById('crew-setup-modal').classList.add('hidden');
-    if (typeof showToast === 'function') showToast('Crew updated', 'success');
+    if (typeof toast === 'function') toast('Crew updated', 'success');
     await loadCrews();
   } catch {
-    if (typeof showToast === 'function') showToast('Save failed', 'error');
+    if (typeof toast === 'function') toast('Save failed', 'error');
   } finally {
     btn.disabled = false;
     btn.textContent = 'Save';

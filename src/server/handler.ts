@@ -11,6 +11,9 @@ import {
 } from './routes/auth.js';
 import { handleGetBrief, handleGenerateBrief, handleApproveBrief } from './routes/briefs.js';
 import { handleGetProposals, handleGenerateProposals, handleUpdateProposal } from './routes/proposals.js';
+import { handleGetFlags, handleResolveFlag, handleTeachPhrase } from './routes/flags.js';
+import { handleGetPhotos } from './routes/photos.js';
+import { handleGetCrews, handleUpdateCrew } from './routes/crews.js';
 import { refreshMonday } from '../monday/refreshMonday.js';
 import { validateSession, extractTokenFromRequest } from '../middleware/auth.js';
 import { generalLimiter, loginLimiter } from '../middleware/rateLimit.js';
@@ -123,6 +126,13 @@ export async function requestHandler(req: IncomingMessage, res: ServerResponse):
         return;
       }
 
+      if (path === '/api/crews' && req.method === 'GET') { await handleGetCrews(req, res); return; }
+      if (path.startsWith('/api/crews/') && req.method === 'PATCH') {
+        const key = path.slice('/api/crews/'.length);
+        const body = await readBody(req) as { telegramGroupId?: string; language?: string };
+        await handleUpdateCrew(req, res, key, body); return;
+      }
+
       if (path === '/api/share' && req.method === 'GET') { await handleGetShareLinks(req, res); return; }
       if (path === '/api/share' && req.method === 'POST') {
         const body = await readBody(req) as { label: string; expiresInDays: number | null };
@@ -153,6 +163,27 @@ export async function requestHandler(req: IncomingMessage, res: ServerResponse):
         const id = path.slice('/api/proposals/'.length);
         const body = await readBody(req) as { status: unknown };
         await handleUpdateProposal(req, res, id, body.status); return;
+      }
+
+      // Flags
+      if (path === '/api/flags/teach' && req.method === 'POST') {
+        const body = await readBody(req) as { phrase: string; intent: string };
+        await handleTeachPhrase(req, res, body); return;
+      }
+      if (path === '/api/flags' && req.method === 'GET') {
+        const date = url.searchParams.get('date') ?? new Date().toISOString().slice(0, 10);
+        await handleGetFlags(req, res, date); return;
+      }
+      if (path.startsWith('/api/flags/') && path.endsWith('/resolve') && req.method === 'POST') {
+        const id = path.slice('/api/flags/'.length).replace('/resolve', '');
+        const body = await readBody(req) as { note?: string };
+        await handleResolveFlag(req, res, id, body); return;
+      }
+
+      // Photos
+      if (path === '/api/photos' && req.method === 'GET') {
+        const date = url.searchParams.get('date') ?? new Date().toISOString().slice(0, 10);
+        await handleGetPhotos(req, res, date); return;
       }
 
       res.writeHead(404); res.end(JSON.stringify({ error: 'Not found' })); return;

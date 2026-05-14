@@ -58,8 +58,8 @@ document.addEventListener("DOMContentLoaded", async () => {
       syncBtn.querySelector('.material-symbols-outlined').style.animation = 'spin 0.75s linear infinite';
       try {
         await fetch('/api/sync', { method: 'POST' });
-        showToast('Monday sync complete', 'success');
-      } catch { showToast('Sync failed', 'error'); }
+        toast('Monday sync complete', 'success');
+      } catch { toast('Sync failed', 'error'); }
       finally {
         syncBtn.disabled = false;
         syncBtn.querySelector('.material-symbols-outlined').style.animation = '';
@@ -704,7 +704,7 @@ window.saveCrewSetup = async function () {
     const res = await fetch(`/api/crews/${encodeURIComponent(_setupCrew.crewKey)}`, {
       method:  "PATCH",
       headers: { "Content-Type": "application/json" },
-      body:    JSON.stringify({ groupId, language }),
+      body:    JSON.stringify({ telegramGroupId: groupId, language }),
     });
     if (res.ok) {
       toast(`${_setupCrew.displayName} connected`, "success");
