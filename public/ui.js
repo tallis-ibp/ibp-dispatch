@@ -105,3 +105,88 @@ IBP.spinner = (label = 'Loading…') => {
   row.appendChild(IBP.el('span', '', label));
   return row;
 };
+
+// Deterministic hash → 0..11 for avatar color palette
+IBP.colorIndex = (name) => {
+  if (!name) return 0;
+  let h = 0;
+  for (let i = 0; i < name.length; i++) h = (h * 31 + name.charCodeAt(i)) | 0;
+  return Math.abs(h) % 12;
+};
+
+IBP.initials = (name) => {
+  if (!name) return '?';
+  const words = String(name).replace(/[()]/g, '').trim().split(/\s+/);
+  if (words.length === 1) return words[0].slice(0, 2).toUpperCase();
+  return (words[0][0] + words[words.length - 1][0]).toUpperCase();
+};
+
+IBP.avatar = (name, size = 'md') => {
+  const div = IBP.el('div', `avatar avatar-${size} avatar-c${IBP.colorIndex(name)}`);
+  div.textContent = IBP.initials(name);
+  return div;
+};
+
+// Skeleton helpers
+IBP.skeleton = (width, height) => {
+  const s = IBP.el('div', 'skeleton');
+  if (width)  s.style.width  = typeof width  === 'number' ? `${width}px`  : width;
+  if (height) s.style.height = typeof height === 'number' ? `${height}px` : height;
+  return s;
+};
+
+IBP.skeletonCard = () => {
+  const card = IBP.el('div', 'skeleton-card');
+  const head = IBP.el('div');
+  head.style.cssText = 'display:flex;align-items:center;gap:10px;';
+  const av = IBP.skeleton(36, 36);
+  av.style.borderRadius = '50%';
+  head.appendChild(av);
+  const lines = IBP.el('div');
+  lines.style.cssText = 'flex:1;display:flex;flex-direction:column;gap:6px;';
+  lines.appendChild(IBP.skeleton('60%', 12));
+  lines.appendChild(IBP.skeleton('40%', 10));
+  head.appendChild(lines);
+  card.appendChild(head);
+  card.appendChild(IBP.skeleton('100%', 22));
+  card.appendChild(IBP.skeleton('100%', 14));
+  return card;
+};
+
+// Promise-based confirm dialog (replaces native window.confirm)
+IBP.confirm = ({ title, message, confirmLabel = 'Confirm', cancelLabel = 'Cancel', danger = false } = {}) => new Promise((resolve) => {
+  const backdrop = IBP.el('div', 'modal-backdrop');
+  const dialog = IBP.el('div', 'confirm-dialog');
+  const body = IBP.el('div');
+  body.style.cssText = 'padding:20px;text-align:center;display:flex;flex-direction:column;align-items:center;';
+  if (danger) {
+    const icon = IBP.el('div', 'confirm-icon');
+    icon.innerHTML = '<i class="ti ti-alert-triangle"></i>';
+    body.appendChild(icon);
+  }
+  body.appendChild(IBP.el('div', '', title))
+      .style.cssText = 'font-size:15px;font-weight:500;color:var(--ink-900);margin-bottom:4px;';
+  if (message) {
+    body.appendChild(IBP.el('div', '', message))
+        .style.cssText = 'font-size:13px;color:var(--ink-600);line-height:1.5;margin-bottom:4px;';
+  }
+  dialog.appendChild(body);
+
+  const footer = IBP.el('div');
+  footer.style.cssText = 'display:flex;gap:8px;padding:0 20px 20px;';
+  const cancel = IBP.el('button', 'btn btn-outline', cancelLabel);
+  cancel.style.flex = '1';
+  const confirm = IBP.el('button', `btn ${danger ? 'btn-danger' : 'btn-primary'}`, confirmLabel);
+  confirm.style.flex = '1';
+  cancel.addEventListener('click', () => { backdrop.remove(); resolve(false); });
+  confirm.addEventListener('click', () => { backdrop.remove(); resolve(true); });
+  backdrop.addEventListener('click', (e) => {
+    if (e.target === backdrop) { backdrop.remove(); resolve(false); }
+  });
+  footer.appendChild(cancel);
+  footer.appendChild(confirm);
+  dialog.appendChild(footer);
+  backdrop.appendChild(dialog);
+  document.body.appendChild(backdrop);
+  confirm.focus();
+});

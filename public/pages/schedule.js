@@ -1,17 +1,18 @@
-/* IBP Dispatch — Schedule page (proposals) */
+/* IBP Dispatch — Schedule page v2 (timeline) */
 
 IBP.registerRoute('schedule', async (main) => {
   const today = IBP.todayISO();
 
+  // Header
   const header = IBP.el('div', 'page-header');
   const left = IBP.el('div');
   left.appendChild(IBP.el('h1', 'page-title', 'Schedule'));
   left.appendChild(IBP.el('div', 'page-meta',
-    'AI-generated proposals for the next 7 days. Review, approve, or reject.'));
+    'AI-generated proposals for the next 7 days. Review, approve, or reject each one.'));
   header.appendChild(left);
 
   const runBtn = IBP.el('button', 'btn btn-primary');
-  runBtn.innerHTML = '<i class="ti ti-sparkles"></i><span>Run agent</span>';
+  runBtn.innerHTML = '<i class="ti ti-sparkles"></i><span>Run agent for today</span>';
   runBtn.addEventListener('click', async () => {
     runBtn.disabled = true;
     runBtn.innerHTML = '<span class="spinner"></span><span>Running…</span>';
@@ -26,24 +27,32 @@ IBP.registerRoute('schedule', async (main) => {
     } catch (err) {
       IBP.toast(err.message || 'Agent failed', 'error');
       runBtn.disabled = false;
-      runBtn.innerHTML = '<i class="ti ti-sparkles"></i><span>Run agent</span>';
+      runBtn.innerHTML = '<i class="ti ti-sparkles"></i><span>Run agent for today</span>';
     }
   });
   header.appendChild(runBtn);
   main.appendChild(header);
 
-  // Fetch proposals for next 7 days
+  // Skeleton state
+  const wrap = IBP.el('div');
+  const skel = IBP.el('div');
+  for (let i = 0; i < 2; i++) {
+    skel.appendChild(IBP.skeleton('30%', 12));
+    const grp = IBP.el('div');
+    grp.style.cssText = 'display:flex;flex-direction:column;gap:6px;margin:8px 0 16px;';
+    for (let j = 0; j < 3; j++) grp.appendChild(IBP.skeleton('100%', 44));
+    skel.appendChild(grp);
+  }
+  wrap.appendChild(skel);
+  main.appendChild(wrap);
+
+  // Fetch proposals
   const dates = [];
   for (let i = 0; i < 7; i++) {
     const d = new Date();
     d.setDate(d.getDate() + i);
     dates.push(d.toISOString().slice(0, 10));
   }
-
-  const wrap = IBP.el('div');
-  wrap.appendChild(IBP.spinner('Loading proposals…'));
-  main.appendChild(wrap);
-
   let allProposals = [];
   try {
     const responses = await Promise.all(
@@ -61,16 +70,31 @@ IBP.registerRoute('schedule', async (main) => {
   }
 
   wrap.innerHTML = '';
+
   if (!allProposals.length) {
     wrap.appendChild(IBP.emptyState({
       icon: 'calendar-off',
-      title: 'No proposals yet',
-      sub: 'Run the scheduling agent to generate today\'s proposals.',
+      title: 'No proposals scheduled',
+      sub: 'Run the agent to have the AI scan today\'s jobs and pair them with available crews.',
       ctaLabel: 'Run agent for today',
       ctaAction: () => runBtn.click(),
     }));
     return;
   }
+
+  // Stats
+  const pending = allProposals.filter((p) => p.status === 'pending').length;
+  const approved = allProposals.filter((p) => p.status === 'approved').length;
+  const rejected = allProposals.filter((p) => p.status === 'rejected').length;
+  const stats = IBP.el('div', 'stat-strip');
+  stats.style.gridTemplateColumns = 'repeat(4, 1fr)';
+  stats.innerHTML = `
+    <div class="stat-card"><div class="stat-num">${IBP.roundNum(allProposals.length)}</div><div class="stat-label">Total proposals</div></div>
+    <div class="stat-card"><div class="stat-num" style="color:var(--warning-700)">${IBP.roundNum(pending)}</div><div class="stat-label">Pending review</div></div>
+    <div class="stat-card"><div class="stat-num" style="color:var(--success-700)">${IBP.roundNum(approved)}</div><div class="stat-label">Approved</div></div>
+    <div class="stat-card"><div class="stat-num" style="color:var(--ink-400)">${IBP.roundNum(rejected)}</div><div class="stat-label">Rejected</div></div>
+  `;
+  wrap.appendChild(stats);
 
   // Group by date
   const byDate = new Map();
@@ -79,52 +103,127 @@ IBP.registerRoute('schedule', async (main) => {
     byDate.get(p.date).push(p);
   }
 
+  // Timeline
+  const timeline = IBP.el('div');
+  timeline.style.cssText = 'display:flex;flex-direction:column;gap:18px;';
+
   for (const [date, props] of [...byDate.entries()].sort()) {
-    const label = IBP.el('div', 'date-group-label', IBP.formatDate(date));
-    wrap.appendChild(label);
-    for (const p of props) {
-      wrap.appendChild(buildProposalCard(p));
-    }
+    timeline.appendChild(buildDayGroup(date, props));
   }
+  wrap.appendChild(timeline);
 });
 
+function buildDayGroup(date, props) {
+  const group = IBP.el('div');
+
+  // Day header
+  const dayHead = IBP.el('div');
+  dayHead.style.cssText = 'display:flex;align-items:center;gap:10px;margin-bottom:8px;';
+
+  const dayPill = IBP.el('div');
+  const isToday = date === IBP.todayISO();
+  const isPast = date < IBP.todayISO();
+  dayPill.style.cssText = `
+    display:flex;align-items:center;justify-content:center;
+    min-width:48px;height:48px;border-radius:8px;
+    background:${isToday ? 'var(--navy-900)' : isPast ? 'var(--paper-alt)' : 'var(--paper)'};
+    color:${isToday ? '#fff' : isPast ? 'var(--ink-400)' : 'var(--ink-900)'};
+    border:1px solid ${isToday ? 'var(--navy-900)' : 'var(--border-soft)'};
+    flex-direction:column;
+    line-height:1;
+  `;
+  const d = new Date(date + 'T12:00:00');
+  const day = d.getDate();
+  const monthShort = d.toLocaleDateString('en-US', { month: 'short' }).toUpperCase();
+  dayPill.innerHTML = `
+    <div style="font-size:10px;letter-spacing:0.04em;opacity:0.7;">${monthShort}</div>
+    <div style="font-size:18px;font-weight:500;">${day}</div>
+  `;
+  dayHead.appendChild(dayPill);
+
+  const labelWrap = IBP.el('div');
+  const dayLabel = IBP.el('div');
+  dayLabel.style.cssText = 'font-size:14px;font-weight:500;color:var(--ink-900);';
+  dayLabel.textContent = isToday ? `Today · ${d.toLocaleDateString('en-US', { weekday: 'long' })}` : d.toLocaleDateString('en-US', { weekday: 'long' });
+  labelWrap.appendChild(dayLabel);
+  const dayMeta = IBP.el('div');
+  dayMeta.style.cssText = 'font-size:11px;color:var(--ink-500);';
+  const pendingCount = props.filter((p) => (p.status || 'pending') === 'pending').length;
+  dayMeta.textContent = `${IBP.roundNum(props.length)} proposal${props.length === 1 ? '' : 's'}${pendingCount ? ` · ${pendingCount} pending` : ''}`;
+  labelWrap.appendChild(dayMeta);
+  dayHead.appendChild(labelWrap);
+  group.appendChild(dayHead);
+
+  // Proposals
+  const list = IBP.el('div');
+  list.style.cssText = 'display:flex;flex-direction:column;gap:6px;margin-left:8px;padding-left:24px;border-left:1px dashed var(--border-medium);';
+
+  for (const p of props) {
+    list.appendChild(buildProposalCard(p));
+  }
+  group.appendChild(list);
+  return group;
+}
+
 function buildProposalCard(p) {
+  const crewKey = p.crew_key ?? p.crewKey ?? '?';
+  const jobName = p.job_name ?? p.jobName ?? '—';
+  const jobNum  = p.job_number ?? p.jobNumber ?? '?';
+  const status = p.status ?? 'pending';
+  const confidence = p.confidence ?? 'medium';
+
   const card = IBP.el('div', 'proposal-card');
 
   const row = IBP.el('div', 'proposal-row');
   const info = IBP.el('div');
-  info.style.display = 'flex';
-  info.style.gap = '12px';
-  info.style.alignItems = 'center';
-  info.appendChild(IBP.el('span', 'proposal-crew', p.crew_key ?? p.crewKey ?? '?'));
-  info.appendChild(IBP.el('span', '', '→'));
-  const job = IBP.el('span', 'proposal-job', `${p.job_name ?? p.jobName ?? '—'} #${p.job_number ?? p.jobNumber ?? '?'}`);
-  info.appendChild(job);
-  const confidence = p.confidence ?? 'medium';
-  info.appendChild(IBP.el('span', `badge ${confidence === 'high' ? 'success' : confidence === 'low' ? 'warning' : 'info'}`, confidence));
+  info.style.cssText = 'display:flex;gap:10px;align-items:center;min-width:0;flex:1;';
+
+  info.appendChild(IBP.avatar(crewKey, 'sm'));
+
+  const text = IBP.el('div');
+  text.style.cssText = 'display:flex;flex-direction:column;gap:1px;min-width:0;';
+  const line1 = IBP.el('div');
+  line1.style.cssText = 'font-size:13px;color:var(--ink-900);font-weight:500;';
+  line1.textContent = crewKey;
+  text.appendChild(line1);
+  const line2 = IBP.el('div');
+  line2.style.cssText = 'font-size:12px;color:var(--ink-600);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;';
+  line2.innerHTML = `${IBP.escHtml(jobName)} · <span style="font-family:JetBrains Mono,Menlo,monospace;color:var(--ink-400);">#${IBP.escHtml(jobNum)}</span>`;
+  text.appendChild(line2);
+  info.appendChild(text);
+
+  const badges = IBP.el('div');
+  badges.style.cssText = 'display:flex;gap:6px;align-items:center;';
+  badges.appendChild(IBP.el('span',
+    `badge ${confidence === 'high' ? 'success' : confidence === 'low' ? 'warning' : 'info'}`,
+    confidence));
 
   const actions = IBP.el('div');
-  actions.style.display = 'flex';
-  actions.style.gap = '6px';
-  const status = p.status ?? 'pending';
+  actions.style.cssText = 'display:flex;gap:4px;';
   if (status === 'pending') {
-    const approveBtn = IBP.el('button', 'btn btn-primary btn-sm', 'Approve');
+    const approveBtn = IBP.el('button', 'btn-icon');
+    approveBtn.title = 'Approve';
+    approveBtn.innerHTML = '<i class="ti ti-check" style="color:var(--success-700)"></i>';
     approveBtn.addEventListener('click', (e) => { e.stopPropagation(); updateProposal(p.id, 'approved'); });
-    const rejectBtn = IBP.el('button', 'btn btn-outline btn-sm', 'Reject');
+    const rejectBtn = IBP.el('button', 'btn-icon');
+    rejectBtn.title = 'Reject';
+    rejectBtn.innerHTML = '<i class="ti ti-x" style="color:var(--danger-700)"></i>';
     rejectBtn.addEventListener('click', (e) => { e.stopPropagation(); updateProposal(p.id, 'rejected'); });
     actions.appendChild(approveBtn);
     actions.appendChild(rejectBtn);
   } else {
     actions.appendChild(IBP.el('span', `badge ${status === 'approved' ? 'success' : 'danger'}`, status));
   }
+  badges.appendChild(actions);
 
   row.appendChild(info);
-  row.appendChild(actions);
+  row.appendChild(badges);
   card.appendChild(row);
 
   if (p.reasoning) {
     const r = IBP.el('div', 'proposal-reasoning', p.reasoning);
     card.appendChild(r);
+    card.style.cursor = 'pointer';
     card.addEventListener('click', () => card.classList.toggle('expanded'));
   }
   return card;

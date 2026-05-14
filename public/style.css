@@ -466,6 +466,26 @@ main {
   background: var(--paper);
   z-index: 1;
 }
+.drawer-close-floating {
+  position: absolute;
+  top: 14px;
+  right: 14px;
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.9);
+  backdrop-filter: blur(4px);
+  border: 1px solid var(--border-soft);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--ink-700);
+  cursor: pointer;
+  z-index: 2;
+  transition: background 100ms ease, color 100ms ease;
+}
+.drawer-close-floating:hover { background: var(--paper); color: var(--ink-900); }
+.drawer-close-floating i { font-size: 16px; }
 .drawer-title {
   font-size: 15px;
   font-weight: 500;
@@ -696,42 +716,104 @@ input:focus, select:focus, textarea:focus {
   font-size: 12px;
 }
 
-/* ─── Crews page — simplified ──────────────────────────────────── */
+/* ─── Avatar (deterministic from name) ──────────────────────────── */
+.avatar {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  font-weight: 500;
+  letter-spacing: 0;
+  flex-shrink: 0;
+  user-select: none;
+  font-feature-settings: 'tnum';
+}
+.avatar-sm { width: 28px; height: 28px; font-size: 11px; }
+.avatar-md { width: 36px; height: 36px; font-size: 13px; }
+.avatar-lg { width: 52px; height: 52px; font-size: 18px; }
+.avatar-c0  { background: #e0e7ff; color: #3730a3; }
+.avatar-c1  { background: #fce7f3; color: #9d174d; }
+.avatar-c2  { background: #dcfce7; color: #166534; }
+.avatar-c3  { background: #fef3c7; color: #92400e; }
+.avatar-c4  { background: #dbeafe; color: #1e40af; }
+.avatar-c5  { background: #fae8ff; color: #86198f; }
+.avatar-c6  { background: #fed7aa; color: #9a3412; }
+.avatar-c7  { background: #cffafe; color: #155e75; }
+.avatar-c8  { background: #fee2e2; color: #991b1b; }
+.avatar-c9  { background: #e0e7ff; color: #312e81; }
+.avatar-c10 { background: #d1fae5; color: #065f46; }
+.avatar-c11 { background: #e9d5ff; color: #6b21a8; }
+
+/* ─── Crews page — richer cards ────────────────────────────────── */
 .crew-mgmt-card {
   background: var(--paper);
   border: 1px solid var(--border-soft);
-  border-radius: var(--radius-md);
-  padding: 14px;
+  border-radius: var(--radius-lg);
+  padding: 16px;
   display: flex;
   flex-direction: column;
   gap: 12px;
-  transition: border-color 120ms ease;
+  transition: transform 180ms cubic-bezier(0.32, 0.72, 0, 1),
+              box-shadow 180ms ease,
+              border-color 180ms ease;
+  cursor: pointer;
+  position: relative;
+  overflow: hidden;
 }
-.crew-mgmt-card.connected {
-  border-left: 3px solid var(--success-700);
-  padding-left: 12px;
+.crew-mgmt-card:hover {
+  border-color: var(--border-medium);
+  box-shadow: 0 4px 16px rgba(15, 23, 42, 0.06), 0 1px 3px rgba(15, 23, 42, 0.04);
+  transform: translateY(-1px);
 }
+.crew-mgmt-card.connected::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  bottom: 0;
+  width: 3px;
+  background: var(--success-700);
+}
+
 .crew-mgmt-head {
   display: flex;
-  align-items: flex-start;
+  align-items: center;
   justify-content: space-between;
-  gap: 8px;
+  gap: 10px;
+}
+.crew-mgmt-identity {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
 }
 .crew-mgmt-name-wrap {
   display: flex;
   flex-direction: column;
-  gap: 2px;
+  gap: 1px;
+  min-width: 0;
 }
 .crew-mgmt-name {
   font-size: 14px;
   font-weight: 500;
   color: var(--ink-900);
-  letter-spacing: -0.005em;
+  letter-spacing: -0.01em;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
-.crew-mgmt-key {
+.crew-mgmt-tagline {
   font-size: 11px;
-  color: var(--ink-400);
-  font-family: 'JetBrains Mono', ui-monospace, Menlo, monospace;
+  color: var(--ink-500);
+  display: flex;
+  align-items: center;
+  gap: 5px;
+}
+.crew-mgmt-tagline .dot-sep {
+  width: 2px;
+  height: 2px;
+  background: var(--ink-300);
+  border-radius: 50%;
 }
 
 .tg-status {
@@ -740,32 +822,184 @@ input:focus, select:focus, textarea:focus {
   gap: 5px;
   font-size: 11px;
   font-weight: 500;
-  color: var(--ink-600);
+  color: var(--success-700);
+  padding: 3px 8px;
+  background: var(--success-100);
+  border-radius: 999px;
 }
 .tg-status .dot {
-  width: 7px;
-  height: 7px;
+  width: 6px;
+  height: 6px;
   border-radius: 50%;
   background: var(--success-700);
+  animation: pulse 2s ease-in-out infinite;
 }
-.tg-status.disconnected { color: var(--ink-400); }
-.tg-status.disconnected .dot { background: var(--ink-300); }
+.tg-status.disconnected {
+  color: var(--ink-500);
+  background: var(--paper-alt);
+  border: 1px solid var(--border-soft);
+}
+.tg-status.disconnected .dot { background: var(--ink-300); animation: none; }
+@keyframes pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.4; }
+}
 
+.crew-mgmt-skills {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  min-height: 22px;
+}
+.crew-skill-mini {
+  background: var(--paper-alt);
+  color: var(--ink-700);
+  font-size: 11px;
+  padding: 2px 7px;
+  border-radius: 4px;
+  border: 1px solid var(--border-soft);
+}
+.crew-skill-empty {
+  font-size: 11px;
+  color: var(--ink-400);
+  font-style: italic;
+}
+
+.crew-mgmt-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding-top: 10px;
+  border-top: 1px solid var(--border-soft);
+}
 .crew-mgmt-id {
   font-family: 'JetBrains Mono', ui-monospace, Menlo, monospace;
   font-size: 11px;
   color: var(--ink-500);
-  padding: 4px 8px;
-  background: var(--paper-alt);
-  border-radius: var(--radius-sm);
-  border: 1px solid var(--border-soft);
+  font-weight: 400;
+  letter-spacing: 0.02em;
 }
-
+.crew-mgmt-id.empty { color: var(--ink-400); font-family: inherit; font-style: italic; }
 .crew-mgmt-actions {
   display: flex;
-  gap: 6px;
+  gap: 4px;
 }
-.crew-mgmt-actions .btn-outline { flex: 1; }
+
+/* ─── Section card (used in drawers) ────────────────────────────── */
+.drawer-section {
+  padding: 16px 20px;
+  border-bottom: 1px solid var(--border-soft);
+}
+.drawer-section:last-of-type { border-bottom: 0; }
+.drawer-section-label {
+  font-size: 10px;
+  font-weight: 500;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--ink-400);
+  margin-bottom: 12px;
+}
+.drawer-section.danger .drawer-section-label { color: var(--danger-700); }
+.drawer-section.danger {
+  background: linear-gradient(0deg, rgba(239,68,68,0.02), rgba(239,68,68,0.02));
+}
+
+.drawer-profile-header {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 20px;
+  background: linear-gradient(180deg, var(--paper-alt) 0%, var(--paper) 100%);
+  border-bottom: 1px solid var(--border-soft);
+}
+.drawer-profile-info {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 0;
+  flex: 1;
+}
+.drawer-profile-name {
+  font-size: 17px;
+  font-weight: 500;
+  color: var(--ink-900);
+  letter-spacing: -0.01em;
+}
+.drawer-profile-key {
+  font-family: 'JetBrains Mono', ui-monospace, Menlo, monospace;
+  font-size: 11px;
+  color: var(--ink-400);
+}
+
+.drawer-body.profile { padding: 0; }
+.drawer-footer.sticky-save {
+  position: sticky;
+  bottom: 0;
+  background: linear-gradient(180deg, rgba(255,255,255,0.6) 0%, var(--paper) 30%);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+}
+
+/* ─── Confirm dialog ────────────────────────────────────────────── */
+.confirm-dialog {
+  background: var(--paper);
+  border-radius: var(--radius-lg);
+  width: 360px;
+  max-width: calc(100vw - 32px);
+  box-shadow: var(--shadow-drawer);
+  overflow: hidden;
+}
+.confirm-icon {
+  width: 44px;
+  height: 44px;
+  border-radius: 50%;
+  background: var(--danger-100);
+  color: var(--danger-700);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  margin-bottom: 12px;
+}
+.confirm-icon i { font-size: 22px; }
+
+/* ─── Skeleton loader ────────────────────────────────────────────── */
+.skeleton {
+  background: linear-gradient(90deg, var(--paper-alt) 0%, var(--ink-200) 50%, var(--paper-alt) 100%);
+  background-size: 200% 100%;
+  animation: shimmer 1.4s ease-in-out infinite;
+  border-radius: var(--radius-sm);
+}
+@keyframes shimmer {
+  0% { background-position: 200% 0; }
+  100% { background-position: -200% 0; }
+}
+.skeleton-card {
+  background: var(--paper);
+  border: 1px solid var(--border-soft);
+  border-radius: var(--radius-lg);
+  padding: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+/* ─── Button improvements (micro-interactions) ──────────────────── */
+.btn {
+  transition: background 100ms ease,
+              border-color 100ms ease,
+              transform 80ms ease,
+              box-shadow 100ms ease;
+}
+.btn:not(:disabled):active { transform: translateY(1px); }
+.btn-primary:not(:disabled):hover {
+  box-shadow: 0 2px 8px rgba(10, 22, 40, 0.18);
+}
+.btn-icon {
+  transition: background 100ms ease, border-color 100ms ease, color 100ms ease;
+}
+.btn-icon:hover { color: var(--navy-900); }
+.btn-icon:active { transform: translateY(1px); }
 
 /* ─── Chip input (skills, cautions) ─────────────────────────────── */
 .chip-input {
