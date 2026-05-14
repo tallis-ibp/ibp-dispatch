@@ -81,10 +81,14 @@ async function loadBrief() {
 
   try {
     const res = await fetch(`/api/briefs/${todayISO()}`);
+    if (res.status === 404) {
+      loading.innerHTML = '<div class="empty-state"><span class="material-symbols-outlined">assignment_late</span>No brief for today yet — click <strong>Regenerate</strong> to create one.</div>';
+      return;
+    }
     currentBrief = await res.json();
     renderBrief(currentBrief);
   } catch (err) {
-    loading.textContent = "Failed to load brief. Click ↻ to retry.";
+    loading.innerHTML = '<div class="empty-state"><span class="material-symbols-outlined">error</span>Failed to load brief.</div>';
     console.error(err);
   }
 }

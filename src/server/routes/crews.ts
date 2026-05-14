@@ -1,5 +1,6 @@
 import type { IncomingMessage, ServerResponse } from 'http';
 import { getSql } from '../../db/client.js';
+import { getBot } from '../../telegram/grammy.js';
 
 export async function handleCreateCrew(
   req: IncomingMessage,
@@ -68,6 +69,34 @@ export async function handleUpdateCrew(
       WHERE key = ${key}
     `;
   }
+  res.writeHead(200, { 'Content-Type': 'application/json' });
+  res.end(JSON.stringify({ ok: true }));
+}
+
+export async function handleTestCrewMessage(
+  req: IncomingMessage,
+  res: ServerResponse,
+  key: string
+): Promise<void> {
+  const sql = getSql();
+  const [crew] = await sql`SELECT display_name, telegram_group_id FROM crews WHERE key = ${key}`;
+  if (!crew) {
+    res.writeHead(404, { 'Content-Type': 'application/json' });
+    res.end(JSON.stringify({ error: 'Crew not found' }));
+    return;
+  }
+  if (!crew.telegram_group_id) {
+    res.writeHead(400, { 'Content-Type': 'application/json' });
+    res.end(JSON.stringify({ error: 'No Telegram chat ID configured for this crew' }));
+    return;
+  }
+  const bot = getBot();
+  await bot.init();
+  await bot.api.sendMessage(
+    crew.telegram_group_id,
+    `✅ IBP Dispatch test message\n\nBot is connected and working for *${crew.display_name}*.\n\nYou will receive job briefs here.`,
+    { parse_mode: 'Markdown' }
+  );
   res.writeHead(200, { 'Content-Type': 'application/json' });
   res.end(JSON.stringify({ ok: true }));
 }
