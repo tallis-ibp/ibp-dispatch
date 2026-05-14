@@ -28,7 +28,43 @@ export async function handleCreateCrew(
 
 export async function handleGetCrews(req: IncomingMessage, res: ServerResponse): Promise<void> {
   const sql = getSql();
-  const crews = await sql`SELECT * FROM crews ORDER BY key`;
+  const today    = new Date().toISOString().slice(0, 10);
+  const weekAgoD = new Date();
+  weekAgoD.setDate(weekAgoD.getDate() - 7);
+  const weekAgo  = weekAgoD.toISOString().slice(0, 10);
+
+  // Enrich each crew with operational aggregates so the Crews page can
+  // render "Working today / On standby / Awaiting setup" without N+1 fetches.
+  const crews = await sql`
+    SELECT
+      c.*,
+      COALESCE((
+        SELECT COUNT(*) FROM brief_jobs
+        WHERE crew_key = c.key AND brief_date = ${today}
+      ), 0)::int AS "jobsToday",
+      COALESCE((
+        SELECT COUNT(*) FROM brief_jobs
+        WHERE crew_key = c.key AND brief_date >= ${weekAgo}
+      ), 0)::int AS "jobsLast7Days",
+      (
+        SELECT MAX(last_check_in) FROM brief_jobs
+        WHERE crew_key = c.key AND last_check_in IS NOT NULL
+      ) AS "lastActivity",
+      (
+        SELECT json_build_object(
+          'jobNumber', job_number,
+          'jobName',   job_name,
+          'briefDate', brief_date,
+          'status',    check_in_status
+        )
+        FROM brief_jobs
+        WHERE crew_key = c.key
+        ORDER BY brief_date DESC
+        LIMIT 1
+      ) AS "lastJob"
+    FROM crews c
+    ORDER BY c.key
+  `;
   res.writeHead(200, { 'Content-Type': 'application/json' });
   res.end(JSON.stringify(crews));
 }

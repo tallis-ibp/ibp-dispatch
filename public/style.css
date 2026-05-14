@@ -886,6 +886,219 @@ input:focus, select:focus, textarea:focus {
   gap: 4px;
 }
 
+/* ─── Section group heading (Crews page) ────────────────────────── */
+.section-group {
+  margin-bottom: 24px;
+}
+.section-heading {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 10px;
+}
+.section-heading-label {
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--ink-700);
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+}
+.section-heading-count {
+  font-size: 11px;
+  color: var(--ink-500);
+  background: var(--paper);
+  border: 1px solid var(--border-soft);
+  border-radius: 999px;
+  padding: 1px 9px;
+  font-feature-settings: 'tnum';
+}
+.section-heading-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+.section-heading-dot.active { background: var(--success-700); }
+.section-heading-dot.standby { background: var(--info-700); }
+.section-heading-dot.idle { background: var(--ink-300); }
+
+/* ─── Operational mini stats inside crew card ──────────────────── */
+.crew-stat-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr 1fr;
+  gap: 1px;
+  background: var(--border-soft);
+  border-radius: var(--radius-md);
+  overflow: hidden;
+  border: 1px solid var(--border-soft);
+}
+.crew-stat-cell {
+  background: var(--paper-alt);
+  padding: 8px 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.crew-stat-label {
+  font-size: 9px;
+  font-weight: 500;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--ink-400);
+}
+.crew-stat-value {
+  font-size: 14px;
+  font-weight: 500;
+  color: var(--ink-900);
+  font-feature-settings: 'tnum';
+}
+.crew-stat-value.muted { color: var(--ink-400); }
+.crew-stat-value.success { color: var(--success-700); }
+
+.crew-last-activity {
+  font-size: 11px;
+  color: var(--ink-500);
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.crew-last-activity i { font-size: 13px; color: var(--ink-400); }
+.crew-last-activity .quote {
+  font-style: italic;
+  color: var(--ink-600);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* ─── Operational drawer subsections ────────────────────────────── */
+.op-block {
+  padding: 14px 20px;
+  border-bottom: 1px solid var(--border-soft);
+}
+.op-block:last-of-type { border-bottom: 0; }
+.op-block-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 10px;
+}
+.op-block-title {
+  font-size: 11px;
+  font-weight: 500;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--ink-500);
+}
+.op-block-count {
+  font-size: 11px;
+  color: var(--ink-400);
+  font-feature-settings: 'tnum';
+}
+.op-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 0;
+  border-bottom: 1px solid var(--border-soft);
+}
+.op-row:last-child { border-bottom: 0; }
+.op-row-main {
+  flex: 1;
+  min-width: 0;
+}
+.op-row-primary {
+  font-size: 13px;
+  color: var(--ink-900);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.op-row-secondary {
+  font-size: 11px;
+  color: var(--ink-500);
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-top: 2px;
+}
+.op-row-secondary .dot-sep {
+  width: 2px;
+  height: 2px;
+  background: var(--ink-300);
+  border-radius: 50%;
+}
+.op-row-date {
+  font-family: 'JetBrains Mono', ui-monospace, Menlo, monospace;
+  font-size: 11px;
+  color: var(--ink-400);
+  flex-shrink: 0;
+}
+
+/* Operational summary stats */
+.op-summary {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 8px;
+  margin-bottom: 14px;
+}
+.op-summary-cell {
+  background: var(--paper-alt);
+  border: 1px solid var(--border-soft);
+  border-radius: var(--radius-md);
+  padding: 10px 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.op-summary-num {
+  font-size: 18px;
+  font-weight: 500;
+  color: var(--ink-900);
+  font-feature-settings: 'tnum';
+}
+.op-summary-label {
+  font-size: 10px;
+  font-weight: 500;
+  color: var(--ink-500);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+/* Tabs in drawer */
+.drawer-tabs {
+  display: flex;
+  gap: 4px;
+  padding: 0 20px;
+  border-bottom: 1px solid var(--border-soft);
+  background: var(--paper);
+}
+.drawer-tab {
+  border: 0;
+  background: transparent;
+  padding: 10px 12px;
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--ink-500);
+  cursor: pointer;
+  position: relative;
+  font-family: inherit;
+}
+.drawer-tab:hover { color: var(--ink-900); }
+.drawer-tab.active {
+  color: var(--ink-900);
+}
+.drawer-tab.active::after {
+  content: '';
+  position: absolute;
+  left: 8px;
+  right: 8px;
+  bottom: -1px;
+  height: 2px;
+  background: var(--navy-900);
+  border-radius: 2px;
+}
+
 /* ─── Section card (used in drawers) ────────────────────────────── */
 .drawer-section {
   padding: 16px 20px;
