@@ -81,8 +81,10 @@ export async function requestHandler(req: IncomingMessage, res: ServerResponse):
       if (WEBHOOK_SECRET && secret !== WEBHOOK_SECRET) { res.writeHead(403); res.end(); return; }
       const body = await readBody(req);
       try {
+        const bot = getBot();
+        await bot.init(); // Grammy requires botInfo before handleUpdate
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        await getBot().handleUpdate(body as any);
+        await bot.handleUpdate(body as any);
       } catch (err) {
         console.error('[webhook] handleUpdate error:', err);
       }
