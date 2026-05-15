@@ -1,8 +1,45 @@
 import Anthropic from '@anthropic-ai/sdk';
 import { getSql } from '../db/client.js';
-import { CREW_PROFILES } from '../core/config.js';
 import type { Job, CrewProfile, ScheduleProposal } from '../types/index.js';
 import { randomUUID } from 'crypto';
+
+// Read crew profiles from the crews table so dashboard edits to skills,
+// cautions, and reliability actually influence next-morning proposals.
+// (Previously the agent read CREW_PROFILES from src/core/config.ts — a
+// hard-coded snapshot that ignored everything the user did in the UI.)
+async function loadCrewProfilesFromDb(): Promise<CrewProfile[]> {
+  const sql = getSql();
+  // Only include crews with reliability set — that's the dispatcher's signal
+  // that the crew is "ready for AI scheduling". Admin/test crews left null.
+  const rows = await sql<Array<{
+    key: string;
+    display_name: string;
+    telegram_group_id: string | null;
+    language: string | null;
+    reliability: string | null;
+    strengths: string | null;
+    cautions: string | null;
+  }>>`
+    SELECT key, display_name, telegram_group_id, language, reliability, strengths, cautions
+    FROM crews
+    WHERE reliability IS NOT NULL
+    ORDER BY key
+  `;
+  const safeParse = (s: string | null, fallback: string[]): string[] => {
+    if (!s) return fallback;
+    try { const v = JSON.parse(s); return Array.isArray(v) ? v : fallback; }
+    catch { return fallback; }
+  };
+  return rows.map((r) => ({
+    key: r.key,
+    displayName: r.display_name,
+    telegramGroupId: r.telegram_group_id,
+    language: (r.language ?? 'en') as CrewProfile['language'],
+    reliability: (r.reliability ?? 'medium') as CrewProfile['reliability'],
+    strengths: safeParse(r.strengths, []),
+    cautions:  safeParse(r.cautions,  []),
+  }));
+}
 
 const client = new Anthropic();
 
@@ -50,7 +87,11 @@ export async function generateProposals(date: string): Promise<ScheduleProposal[
     SELECT * FROM jobs WHERE status IN ('NEED_TO_SCHEDULE', 'SCHEDULED_JOB') AND material_ready = 1
   `;
 
-  const crews = Object.values(CREW_PROFILES);
+  const crews = await loadCrewProfilesFromDb();
+  if (crews.length === 0) {
+    console.warn('[schedulingAgent] No crews in DB — skipping proposal generation');
+    return [];
+  }
 
   const prompt = buildSchedulingPrompt(
     jobRows.map((j) => ({
