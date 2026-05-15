@@ -1,4 +1,11 @@
-/* IBP Dispatch — Schedule page v2 (timeline) */
+/* IBP Dispatch — Schedule page v3 (sheet embed + AI proposals) */
+
+// Source planilha — the human scheduler's master view. Edited in Google Sheets,
+// embedded here so the dispatcher sees both the human plan and the AI proposals.
+// Sheet must be shared as "Anyone with the link can view" for the iframe to render.
+const SHEET_ID = '1516H1ZQImJ4arKe6wYeFMqFw6V_-697QM-HiBs7qOY8';
+const SHEET_EDIT_URL = `https://docs.google.com/spreadsheets/d/${SHEET_ID}/edit`;
+const SHEET_EMBED_URL = `${SHEET_EDIT_URL}?usp=sharing&rm=minimal&widget=true&headers=false`;
 
 IBP.registerRoute('schedule', async (main) => {
   const today = IBP.todayISO();
@@ -8,7 +15,7 @@ IBP.registerRoute('schedule', async (main) => {
   const left = IBP.el('div');
   left.appendChild(IBP.el('h1', 'page-title', 'Schedule'));
   left.appendChild(IBP.el('div', 'page-meta',
-    'AI-generated proposals for the next 7 days. Review, approve, or reject each one.'));
+    'Human-planned weekly schedule (source) above · AI proposals for the next 7 days below.'));
   header.appendChild(left);
 
   const runBtn = IBP.el('button', 'btn btn-primary');
@@ -32,6 +39,9 @@ IBP.registerRoute('schedule', async (main) => {
   });
   header.appendChild(runBtn);
   main.appendChild(header);
+
+  // ─── Embedded Google Sheet (human-planned weekly schedule) ───
+  main.appendChild(buildSheetEmbed());
 
   // Skeleton state
   const wrap = IBP.el('div');
@@ -226,6 +236,58 @@ function buildProposalCard(p) {
     card.style.cursor = 'pointer';
     card.addEventListener('click', () => card.classList.toggle('expanded'));
   }
+  return card;
+}
+
+function buildSheetEmbed() {
+  // Restore collapse state from localStorage so the user's preference sticks
+  const collapsed = localStorage.getItem('ibp.sheetEmbed.collapsed') === '1';
+  const card = IBP.el('div', `sheet-embed-card ${collapsed ? 'collapsed' : ''}`);
+
+  const head = IBP.el('div', 'sheet-embed-head');
+  head.innerHTML = `
+    <div class="sheet-embed-title">
+      <i class="ti ti-table brand"></i>
+      <div class="sheet-embed-title-text">
+        <span class="label">Weekly schedule · source planilha</span>
+        <span class="sub">Edited in Google Sheets by the human scheduler. Updates live.</span>
+      </div>
+    </div>
+    <div class="sheet-embed-actions">
+      <a class="btn btn-outline btn-sm" target="_blank" rel="noopener" href="${SHEET_EDIT_URL}">
+        <i class="ti ti-external-link"></i><span>Open in Google Sheets</span>
+      </a>
+      <span class="btn-caret"><i class="ti ti-chevron-down"></i></span>
+    </div>
+  `;
+  // Click on the head (but not on the "Open" anchor) toggles collapse
+  head.addEventListener('click', (e) => {
+    if (e.target.closest('a')) return;
+    card.classList.toggle('collapsed');
+    localStorage.setItem('ibp.sheetEmbed.collapsed',
+      card.classList.contains('collapsed') ? '1' : '0');
+  });
+  card.appendChild(head);
+
+  const body = IBP.el('div', 'sheet-embed-body');
+  const iframe = IBP.el('iframe', 'sheet-embed-iframe');
+  iframe.src = SHEET_EMBED_URL;
+  iframe.loading = 'lazy';
+  iframe.referrerPolicy = 'no-referrer-when-downgrade';
+  iframe.title = 'Weekly schedule (Google Sheets)';
+  iframe.addEventListener('load', () => iframe.classList.add('loaded'));
+
+  // Fallback message in case the sheet isn't shared publicly (iframe stays blank)
+  const fallback = IBP.el('div', 'sheet-embed-fallback');
+  fallback.innerHTML = `
+    <i class="ti ti-lock" style="font-size:24px;color:var(--ink-400)"></i>
+    <span class="label">Sheet not accessible</span>
+    <span class="sub">If you see a sign-in screen, share the sheet as <strong>Anyone with the link can view</strong> in Google Sheets.</span>
+  `;
+  body.appendChild(iframe);
+  body.appendChild(fallback);
+  card.appendChild(body);
+
   return card;
 }
 
