@@ -3,7 +3,9 @@
   "outputDirectory": "public",
   "rewrites": [
     { "source": "/api/:path*", "destination": "/api/index" },
-    { "source": "/webhook/:path*", "destination": "/api/index" }
+    { "source": "/webhook/:path*", "destination": "/api/index" },
+    { "source": "/", "destination": "/api/index" },
+    { "source": "/index.html", "destination": "/api/index" }
   ],
   "crons": [
     { "path": "/api/cron/fetch-schedule", "schedule": "0 5 * * *" },

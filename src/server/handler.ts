@@ -54,7 +54,27 @@ function serveFile(res: ServerResponse, filePath: string): void {
   const mime: Record<string, string> = {
     html: 'text/html', css: 'text/css', js: 'application/javascript', json: 'application/json',
   };
-  res.writeHead(200, { 'Content-Type': mime[ext ?? 'html'] ?? 'text/plain' });
+  // For index.html: inject build SHA into static asset URLs so every deploy
+  // busts the browser cache automatically. Also set no-cache on the HTML.
+  if (ext === 'html') {
+    const sha = (process.env.VERCEL_GIT_COMMIT_SHA ?? 'local').slice(0, 8);
+    let html = readFileSync(filePath, 'utf-8');
+    html = html.replace(
+      /(<(?:script|link)[^>]+(?:src|href)=")(\/(?:[a-zA-Z0-9_\-./]+)?(?:\.js|\.css))"/g,
+      `$1$2?v=${sha}"`,
+    );
+    html = html.replace('</head>', `<meta name="build-sha" content="${sha}"></head>`);
+    res.writeHead(200, {
+      'Content-Type': 'text/html',
+      'Cache-Control': 'no-cache, no-store, must-revalidate',
+    });
+    res.end(html);
+    return;
+  }
+  res.writeHead(200, {
+    'Content-Type': mime[ext ?? 'html'] ?? 'text/plain',
+    'Cache-Control': 'public, max-age=31536000, immutable',
+  });
   res.end(readFileSync(filePath));
 }
 

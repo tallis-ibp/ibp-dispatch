@@ -167,8 +167,27 @@ window.saveCrewSetup = async () => {
   }
 };
 
+// Show the deployed build SHA in the sidebar footer so the user can confirm
+// they're looking at the latest version when debugging UI issues. Pulls from
+// <meta name="build-sha" content="..."> injected by the server.
+function setBuildShaIndicator() {
+  const meta = document.querySelector('meta[name="build-sha"]');
+  const sha = meta?.getAttribute('content') ?? 'local';
+  const el = document.getElementById('build-sha');
+  if (el) {
+    el.textContent = sha;
+    el.title = `Build SHA: ${sha} · click to hard-reload`;
+    el.style.cursor = 'pointer';
+    el.addEventListener('click', () => {
+      // Append timestamp to bypass any client caching
+      location.href = location.pathname + location.hash + '?t=' + Date.now();
+    });
+  }
+}
+
 // ─── Boot ───────────────────────────────────────────────────────
 document.addEventListener('DOMContentLoaded', async () => {
+  setBuildShaIndicator();
   const authed = await checkAuth();
   if (!authed) return;
   document.getElementById('app').classList.remove('hidden');

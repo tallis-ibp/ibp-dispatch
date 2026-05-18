@@ -49,6 +49,10 @@ IBP.registerRoute('crews', async (main) => {
   const awaitingSetup = crews.filter((c) => !c.telegram_group_id);
   const totalJobsToday = crews.reduce((n, c) => n + (c.jobsToday || 0), 0);
 
+  // Render trace — visible diagnostics if something silently fails
+  console.info('[crews] loaded',
+    `total=${crews.length} · working=${workingToday.length} · standby=${onStandby.length} · awaiting=${awaitingSetup.length}`);
+
   const stats = IBP.el('div', 'stat-strip');
   stats.style.gridTemplateColumns = 'repeat(4, 1fr)';
   stats.innerHTML = `
