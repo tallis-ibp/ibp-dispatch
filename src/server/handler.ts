@@ -22,6 +22,7 @@ import {
   handleGetLearnedPhrases, handleCreateLearnedPhrase, handleDeleteLearnedPhrase,
 } from './routes/learnedPhrases.js';
 import { handleGetIntegrationsHealth } from './routes/health.js';
+import { handleResetTestData } from './routes/admin.js';
 import { refreshMonday } from '../monday/refreshMonday.js';
 import { validateSession, extractTokenFromRequest } from '../middleware/auth.js';
 import { generalLimiter, loginLimiter } from '../middleware/rateLimit.js';
@@ -102,6 +103,11 @@ export async function requestHandler(req: IncomingMessage, res: ServerResponse):
       }
       res.writeHead(200); res.end();
       return;
+    }
+
+    // Admin reset (one-shot wipe of test data). Auth: Bearer ${CRON_SECRET}.
+    if (path === '/api/admin/reset-test-data' && req.method === 'POST') {
+      await handleResetTestData(req, res); return;
     }
 
     // Debug endpoint — check bot token works
