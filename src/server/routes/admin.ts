@@ -1,6 +1,7 @@
 import type { IncomingMessage, ServerResponse } from 'http';
 import { getSql } from '../../db/client.js';
 import { getBot } from '../../telegram/grammy.js';
+import { backfillTelegramChatsFromCrews } from '../../telegram/chatRegistry.js';
 
 // Admin endpoints accept either:
 //   - DISABLE_AUTH=true (dev / personal project mode — already the user's setup)
@@ -97,6 +98,15 @@ export async function handleResetTestData(
     RETURNING key
   `;
   counts['crews_unlinked'] = cleared.length;
+
+  // Drop telegram_chats rows whose crews are no longer linked, so the
+  // dashboard doesn't keep showing stale "linked to TEST CREW".
+  await sql`
+    DELETE FROM telegram_chats
+    WHERE chat_id NOT IN (SELECT telegram_group_id FROM crews WHERE telegram_group_id IS NOT NULL)
+  `;
+  // Backfill the remaining real link(s) so the Telegram page shows them
+  await backfillTelegramChatsFromCrews();
 
   res.writeHead(200, { 'Content-Type': 'application/json' });
   res.end(JSON.stringify({

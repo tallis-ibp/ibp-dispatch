@@ -2,6 +2,7 @@ import type { VercelRequest, VercelResponse } from '@vercel/node';
 import { requestHandler } from '../src/server/handler.js';
 import { runMigrations } from '../src/db/migrations.js';
 import { seedCrews } from '../src/db/seedCrews.js';
+import { backfillTelegramChatsFromCrews } from '../src/telegram/chatRegistry.js';
 
 let initialized = false;
 let initError: string | null = null;
@@ -22,6 +23,12 @@ async function ensureInitialized(): Promise<void> {
   } catch (err) {
     // Seed failure is non-fatal (tables exist, just no default rows)
     console.error('[init] Seed failed (non-fatal):', err);
+  }
+  try {
+    const n = await backfillTelegramChatsFromCrews();
+    if (n > 0) console.log(`[init] Backfilled ${n} telegram_chats rows from crews`);
+  } catch (err) {
+    console.warn('[init] telegram_chats backfill (non-fatal):', err);
   }
   initialized = true;
   initError = null;
