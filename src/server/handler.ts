@@ -23,6 +23,10 @@ import {
 } from './routes/learnedPhrases.js';
 import { handleGetIntegrationsHealth } from './routes/health.js';
 import { handleResetTestData, handleSetupWebhook } from './routes/admin.js';
+import {
+  handleListChats, handleLinkChat, handleUnlinkChat,
+  handleQuickSend, handleActivityFeed,
+} from './routes/telegram.js';
 import { refreshMonday } from '../monday/refreshMonday.js';
 import { validateSession, extractTokenFromRequest } from '../middleware/auth.js';
 import { generalLimiter, loginLimiter } from '../middleware/rateLimit.js';
@@ -200,6 +204,30 @@ export async function requestHandler(req: IncomingMessage, res: ServerResponse):
       // Health
       if (path === '/api/health/integrations' && req.method === 'GET') {
         await handleGetIntegrationsHealth(req, res); return;
+      }
+
+      // Telegram chat registry (auto-detected groups)
+      if (path === '/api/telegram/chats' && req.method === 'GET') {
+        await handleListChats(req, res); return;
+      }
+      if (path === '/api/telegram/activity' && req.method === 'GET') {
+        const limit = parseInt(url.searchParams.get('limit') ?? '50', 10);
+        await handleActivityFeed(req, res, limit); return;
+      }
+      if (path === '/api/telegram/send' && req.method === 'POST') {
+        const body = await readBody(req) as { chatId?: string; text?: string };
+        await handleQuickSend(req, res, body); return;
+      }
+      {
+        const m = path.match(/^\/api\/telegram\/chats\/([^/]+)\/(link|unlink)$/);
+        if (m && req.method === 'POST') {
+          if (m[2] === 'link') {
+            const body = await readBody(req) as { crewKey?: string };
+            await handleLinkChat(req, res, m[1], body); return;
+          } else {
+            await handleUnlinkChat(req, res, m[1]); return;
+          }
+        }
       }
 
       if (path === '/api/share' && req.method === 'GET') { await handleGetShareLinks(req, res); return; }

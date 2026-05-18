@@ -4,8 +4,9 @@
 // embedded here so the dispatcher sees both the human plan and the AI proposals.
 // Sheet must be shared as "Anyone with the link can view" for the iframe to render.
 const SHEET_ID = '1516H1ZQImJ4arKe6wYeFMqFw6V_-697QM-HiBs7qOY8';
-const SHEET_EDIT_URL = `https://docs.google.com/spreadsheets/d/${SHEET_ID}/edit`;
-const SHEET_EMBED_URL = `${SHEET_EDIT_URL}?usp=sharing&rm=minimal&widget=true&headers=false`;
+const SHEET_DEFAULT_GID = '526995137'; // active week tab — adjust if Lucas changes it
+const SHEET_EDIT_URL  = `https://docs.google.com/spreadsheets/d/${SHEET_ID}/edit?gid=${SHEET_DEFAULT_GID}#gid=${SHEET_DEFAULT_GID}`;
+const SHEET_EMBED_URL = `https://docs.google.com/spreadsheets/d/${SHEET_ID}/edit?gid=${SHEET_DEFAULT_GID}&rm=minimal&widget=true&headers=false#gid=${SHEET_DEFAULT_GID}`;
 
 IBP.registerRoute('schedule', async (main) => {
   const today = IBP.todayISO();
