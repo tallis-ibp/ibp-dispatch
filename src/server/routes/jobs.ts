@@ -7,6 +7,91 @@ function safeParse<T>(json: unknown, fallback: T): T {
   try { return JSON.parse(json as string) as T; } catch { return fallback; }
 }
 
+// GET /api/jobs?status=&materialReady=&search=&limit=&offset=
+// Lists Monday-synced jobs so the dispatcher can browse them in the dashboard.
+export async function handleListJobs(
+  req: IncomingMessage,
+  res: ServerResponse,
+  filters: {
+    status?: string; materialReady?: string; search?: string;
+    limit?: number; offset?: number;
+  } = {},
+): Promise<void> {
+  const sql = getSql();
+  const limit  = Math.min(filters.limit ?? 100, 500);
+  const offset = filters.offset ?? 0;
+  const status = filters.status ?? null;
+  const material = filters.materialReady ?? null;
+  const search = filters.search ? `%${filters.search.toLowerCase()}%` : null;
+
+  type Row = {
+    id: string; jobNumber: string; itemName: string;
+    customerName: string | null; address: string | null; city: string | null;
+    clientType: string | null; jobType: string | null;
+    status: string | null; materialStatus: string | null; materialReady: number | null;
+    trailerNeeded: string; driverNeeded: number | null;
+    logisticsStatus: string | null; promisedDate: string | null;
+    notes: string | null; syncedAt: string;
+  };
+
+  const rows = await sql<Row[]>`
+    SELECT
+      id, job_number AS "jobNumber", item_name AS "itemName",
+      customer_name AS "customerName", address, city,
+      client_type AS "clientType", job_type AS "jobType",
+      status, material_status AS "materialStatus", material_ready AS "materialReady",
+      trailer_needed AS "trailerNeeded", driver_needed AS "driverNeeded",
+      logistics_status AS "logisticsStatus", promised_date AS "promisedDate",
+      notes, synced_at AS "syncedAt"
+    FROM jobs
+    WHERE (${status}::text IS NULL OR status = ${status})
+      AND (${material}::text IS NULL OR
+           (${material} = 'ready'  AND material_ready = 1) OR
+           (${material} = 'unknown' AND material_ready IS NULL) OR
+           (${material} = 'pending' AND material_ready = 0))
+      AND (${search}::text IS NULL OR
+           lower(item_name)     LIKE ${search} OR
+           lower(job_number)    LIKE ${search} OR
+           lower(COALESCE(customer_name, '')) LIKE ${search} OR
+           lower(COALESCE(address, ''))       LIKE ${search})
+    ORDER BY
+      CASE WHEN material_ready = 1 THEN 0 ELSE 1 END,
+      promised_date NULLS LAST,
+      job_number
+    LIMIT ${limit} OFFSET ${offset}
+  `;
+
+  // Lightweight transform: parse trailer_needed JSON, attach Monday URL
+  const result = rows.map((r) => ({
+    ...r,
+    trailerNeeded: safeParse(r.trailerNeeded, [] as string[]),
+    mondayItemUrl: `https://installbrickpavers-team.monday.com/boards/2214820863/pulses/${r.id}`,
+  }));
+
+  // Aggregate status counts for the filter UI
+  const counts = await sql<Array<{ status: string | null; n: string }>>`
+    SELECT status, COUNT(*)::text AS n FROM jobs GROUP BY status ORDER BY n DESC
+  `;
+  const materialCounts = await sql<Array<{ bucket: string; n: string }>>`
+    SELECT
+      CASE
+        WHEN material_ready = 1   THEN 'ready'
+        WHEN material_ready = 0   THEN 'pending'
+        ELSE 'unknown'
+      END AS bucket,
+      COUNT(*)::text AS n
+    FROM jobs GROUP BY bucket
+  `;
+
+  res.writeHead(200, { 'Content-Type': 'application/json' });
+  res.end(JSON.stringify({
+    jobs: result,
+    statusCounts: counts.map((c) => ({ status: c.status, count: parseInt(c.n, 10) })),
+    materialCounts: materialCounts.map((c) => ({ bucket: c.bucket, count: parseInt(c.n, 10) })),
+    totalReturned: result.length,
+  }));
+}
+
 // GET /api/jobs/:jobNumber
 // Merged view: jobs row + brief_jobs history + recent photos + open flags.
 export async function handleGetJob(

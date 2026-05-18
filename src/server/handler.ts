@@ -17,7 +17,7 @@ import {
   handleGetCrews, handleCreateCrew, handleUpdateCrew, handleTestCrewMessage,
   handleGetCrewDetail, handleGetRecentChats, handleDeleteCrew,
 } from './routes/crews.js';
-import { handleGetJob, handleGetMaterialStatus, handleSetMaterialStatus } from './routes/jobs.js';
+import { handleGetJob, handleGetMaterialStatus, handleSetMaterialStatus, handleListJobs } from './routes/jobs.js';
 import {
   handleGetLearnedPhrases, handleCreateLearnedPhrase, handleDeleteLearnedPhrase,
 } from './routes/learnedPhrases.js';
@@ -195,6 +195,16 @@ export async function requestHandler(req: IncomingMessage, res: ServerResponse):
       }
 
       // Jobs
+      if (path === '/api/jobs' && req.method === 'GET') {
+        await handleListJobs(req, res, {
+          status:        url.searchParams.get('status')        ?? undefined,
+          materialReady: url.searchParams.get('materialReady') ?? undefined,
+          search:        url.searchParams.get('search')        ?? undefined,
+          limit:  url.searchParams.get('limit')  ? parseInt(url.searchParams.get('limit')!, 10)  : undefined,
+          offset: url.searchParams.get('offset') ? parseInt(url.searchParams.get('offset')!, 10) : undefined,
+        });
+        return;
+      }
       if (path.startsWith('/api/jobs/') && path.endsWith('/material-status') && req.method === 'GET') {
         const jobNumber = path.slice('/api/jobs/'.length).replace('/material-status', '');
         await handleGetMaterialStatus(req, res, jobNumber); return;
