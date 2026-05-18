@@ -187,11 +187,18 @@ function buildJobRow(job) {
   `;
   row.appendChild(jobCol);
 
-  // Customer
+  // Customer + current assignment (if any)
   const customerCol = IBP.el('div', 'col-customer');
   customerCol.innerHTML = `
     <div>${IBP.escHtml(job.customerName ?? '—')}</div>
     ${job.clientType ? `<div class="job-meta">${IBP.escHtml(job.clientType)}</div>` : ''}
+    ${job.currentAssignment ? `
+      <div style="margin-top:4px;display:inline-flex;align-items:center;gap:4px;font-size:11px;color:var(--info-700);background:var(--info-100);padding:2px 7px;border-radius:4px;font-weight:500;">
+        <i class="ti ti-user-check" style="font-size:12px;"></i>
+        <span>${IBP.escHtml(job.currentAssignment.crewName)}</span>
+        <span style="font-family:JetBrains Mono,Menlo,monospace;font-size:10px;color:var(--info-700);opacity:0.7;">${IBP.escHtml(job.currentAssignment.date ?? '')}</span>
+      </div>
+    ` : ''}
   `;
   row.appendChild(customerCol);
 
@@ -218,8 +225,18 @@ function buildJobRow(job) {
     : `<div class="job-meta">—</div>`;
   row.appendChild(promisedCol);
 
-  // Actions
+  // Actions: assign + open in Monday
   const actionsCol = IBP.el('div', 'col-actions');
+
+  const assignBtn = IBP.el('button', 'btn btn-primary btn-sm');
+  assignBtn.innerHTML = '<i class="ti ti-user-plus"></i><span>Assign</span>';
+  assignBtn.title = 'Assign this job to a crew for today';
+  assignBtn.addEventListener('click', (e) => {
+    e.stopPropagation();
+    openAssignDialog(job);
+  });
+  actionsCol.appendChild(assignBtn);
+
   const link = IBP.el('a', 'btn-icon');
   link.title = 'Open in Monday';
   link.innerHTML = '<i class="ti ti-external-link"></i>';
@@ -231,4 +248,93 @@ function buildJobRow(job) {
   row.appendChild(actionsCol);
 
   return row;
+}
+
+// Assignment dialog: pick a crew, optionally pick the date, submit.
+// Creates an approved schedule_proposal which generate-briefs picks up.
+async function openAssignDialog(job) {
+  let crews;
+  try { crews = await IBP.fetchJson('/api/crews'); }
+  catch (err) { IBP.toast(err.message, 'error'); return; }
+
+  // Sort: crews ready for AI scheduling first
+  const ready = crews.filter((c) => c.reliability);
+  const others = crews.filter((c) => !c.reliability);
+  const sortedCrews = [
+    ...ready.sort((a, b) => a.display_name.localeCompare(b.display_name)),
+    ...others.sort((a, b) => a.display_name.localeCompare(b.display_name)),
+  ];
+
+  const body = IBP.el('div');
+  body.style.cssText = 'display:flex;flex-direction:column;gap:12px;';
+  body.innerHTML = `
+    <div style="background:var(--paper-alt);border:1px solid var(--border-soft);border-radius:6px;padding:10px 12px;font-size:12px;color:var(--ink-700);line-height:1.5;">
+      <div style="font-weight:500;color:var(--ink-900);margin-bottom:2px;">${IBP.escHtml(job.itemName ?? '—')}</div>
+      <div>#${IBP.escHtml(job.jobNumber ?? '?')} · ${IBP.escHtml(job.customerName ?? '—')}</div>
+      ${job.address ? `<div style="font-size:11px;color:var(--ink-500);margin-top:2px;">${IBP.escHtml(job.address)}</div>` : ''}
+    </div>
+    <div class="input-row">
+      <label class="input-label">Assign for</label>
+      <input id="assign-date" type="date" value="${IBP.todayISO()}">
+    </div>
+    <div class="input-row">
+      <label class="input-label">Pick a crew · ${IBP.roundNum(sortedCrews.length)} available</label>
+      <div id="assign-crews" style="display:flex;flex-direction:column;gap:4px;max-height:340px;overflow-y:auto;border:1px solid var(--border-soft);border-radius:6px;padding:6px;background:var(--paper-alt);">
+        ${sortedCrews.map((c) => {
+          const initials = IBP.initials(c.display_name);
+          const cidx = IBP.colorIndex(c.display_name);
+          const skills = IBP.safeJson(c.strengths, []);
+          const skillPreview = skills.slice(0, 3).join(' · ');
+          const reliabilityBadge = c.reliability
+            ? `<span class="badge ${c.reliability === 'high' ? 'success' : c.reliability === 'low' ? 'danger' : 'warning'}">${IBP.escHtml(c.reliability)}</span>`
+            : `<span class="badge neutral">no AI profile</span>`;
+          const connected = c.telegram_group_id ? '<span class="tg-status"><span class="dot"></span><span>Live</span></span>' : '<span class="tg-status disconnected"><span class="dot"></span><span>Not set</span></span>';
+          return `
+            <button class="assign-crew-pick" data-key="${IBP.escHtml(c.key)}" style="text-align:left;background:var(--paper);border:1px solid var(--border-soft);border-radius:6px;padding:10px 12px;cursor:pointer;display:flex;align-items:center;gap:10px;">
+              <div class="avatar avatar-md avatar-c${cidx}">${IBP.escHtml(initials)}</div>
+              <div style="flex:1;min-width:0;">
+                <div style="font-size:13px;font-weight:500;color:var(--ink-900);">${IBP.escHtml(c.display_name)}</div>
+                <div style="font-size:11px;color:var(--ink-500);margin-top:1px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${skillPreview ? IBP.escHtml(skillPreview) : '<em>no skills tagged</em>'}</div>
+              </div>
+              <div style="display:flex;flex-direction:column;align-items:flex-end;gap:2px;">
+                ${reliabilityBadge}
+                ${connected}
+              </div>
+            </button>
+          `;
+        }).join('')}
+      </div>
+    </div>
+  `;
+
+  IBP.openDrawer({
+    title: 'Assign job to crew',
+    subtitle: `#${job.jobNumber}`,
+    body,
+  });
+
+  // Wire crew picker buttons
+  setTimeout(() => {
+    document.querySelectorAll('.assign-crew-pick').forEach((btn) => {
+      btn.addEventListener('click', async () => {
+        const crewKey = btn.getAttribute('data-key');
+        const date = document.getElementById('assign-date').value;
+        btn.disabled = true;
+        try {
+          const result = await IBP.fetchJson(`/api/jobs/${job.jobNumber}/assign`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ crewKey, date }),
+          });
+          IBP.toast(`#${job.jobNumber} assigned to ${result.crewName} for ${date}`, 'success');
+          IBP.closeDrawer();
+          // Re-render Jobs page to reflect the new assignment
+          IBP.render();
+        } catch (err) {
+          IBP.toast(err.message || 'Assign failed', 'error');
+          btn.disabled = false;
+        }
+      });
+    });
+  }, 0);
 }

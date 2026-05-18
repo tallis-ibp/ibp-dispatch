@@ -17,7 +17,10 @@ import {
   handleGetCrews, handleCreateCrew, handleUpdateCrew, handleTestCrewMessage,
   handleGetCrewDetail, handleGetRecentChats, handleDeleteCrew,
 } from './routes/crews.js';
-import { handleGetJob, handleGetMaterialStatus, handleSetMaterialStatus, handleListJobs } from './routes/jobs.js';
+import {
+  handleGetJob, handleGetMaterialStatus, handleSetMaterialStatus,
+  handleListJobs, handleAssignJob, handleGetJobAssignment,
+} from './routes/jobs.js';
 import {
   handleGetLearnedPhrases, handleCreateLearnedPhrase, handleDeleteLearnedPhrase,
 } from './routes/learnedPhrases.js';
@@ -213,6 +216,15 @@ export async function requestHandler(req: IncomingMessage, res: ServerResponse):
         const jobNumber = path.slice('/api/jobs/'.length).replace('/material-status', '');
         const body = await readBody(req) as { confirmed?: boolean };
         await handleSetMaterialStatus(req, res, jobNumber, body); return;
+      }
+      if (path.startsWith('/api/jobs/') && path.endsWith('/assign') && req.method === 'POST') {
+        const jobNumber = path.slice('/api/jobs/'.length).replace('/assign', '');
+        const body = await readBody(req) as { crewKey?: string; date?: string };
+        await handleAssignJob(req, res, jobNumber, body); return;
+      }
+      if (path.startsWith('/api/jobs/') && path.endsWith('/assignment') && req.method === 'GET') {
+        const jobNumber = path.slice('/api/jobs/'.length).replace('/assignment', '');
+        await handleGetJobAssignment(req, res, jobNumber); return;
       }
       if (path.startsWith('/api/jobs/') && req.method === 'GET') {
         const jobNumber = path.slice('/api/jobs/'.length);

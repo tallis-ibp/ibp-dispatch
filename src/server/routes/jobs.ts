@@ -34,38 +34,61 @@ export async function handleListJobs(
     notes: string | null; syncedAt: string;
   };
 
-  const rows = await sql<Row[]>`
+  const rows = await sql<(Row & {
+    assignedCrewKey: string | null;
+    assignedCrewName: string | null;
+    assignedDate: string | null;
+    assignedStatus: string | null;
+  })[]>`
     SELECT
-      id, job_number AS "jobNumber", item_name AS "itemName",
-      customer_name AS "customerName", address, city,
-      client_type AS "clientType", job_type AS "jobType",
-      status, material_status AS "materialStatus", material_ready AS "materialReady",
-      trailer_needed AS "trailerNeeded", driver_needed AS "driverNeeded",
-      logistics_status AS "logisticsStatus", promised_date AS "promisedDate",
-      notes, synced_at AS "syncedAt"
-    FROM jobs
-    WHERE (${status}::text IS NULL OR status = ${status})
+      j.id, j.job_number AS "jobNumber", j.item_name AS "itemName",
+      j.customer_name AS "customerName", j.address, j.city,
+      j.client_type AS "clientType", j.job_type AS "jobType",
+      j.status, j.material_status AS "materialStatus", j.material_ready AS "materialReady",
+      j.trailer_needed AS "trailerNeeded", j.driver_needed AS "driverNeeded",
+      j.logistics_status AS "logisticsStatus", j.promised_date AS "promisedDate",
+      j.notes, j.synced_at AS "syncedAt",
+      a.crew_key AS "assignedCrewKey",
+      a.crew_display AS "assignedCrewName",
+      a.date AS "assignedDate",
+      a.status AS "assignedStatus"
+    FROM jobs j
+    LEFT JOIN LATERAL (
+      SELECT sp.crew_key, c.display_name AS crew_display, sp.date, sp.status
+      FROM schedule_proposals sp
+      LEFT JOIN crews c ON c.key = sp.crew_key
+      WHERE sp.job_number = j.job_number
+      ORDER BY sp.date DESC, sp.generated_at DESC
+      LIMIT 1
+    ) a ON TRUE
+    WHERE (${status}::text IS NULL OR j.status = ${status})
       AND (${material}::text IS NULL OR
-           (${material} = 'ready'  AND material_ready = 1) OR
-           (${material} = 'unknown' AND material_ready IS NULL) OR
-           (${material} = 'pending' AND material_ready = 0))
+           (${material} = 'ready'  AND j.material_ready = 1) OR
+           (${material} = 'unknown' AND j.material_ready IS NULL) OR
+           (${material} = 'pending' AND j.material_ready = 0))
       AND (${search}::text IS NULL OR
-           lower(item_name)     LIKE ${search} OR
-           lower(job_number)    LIKE ${search} OR
-           lower(COALESCE(customer_name, '')) LIKE ${search} OR
-           lower(COALESCE(address, ''))       LIKE ${search})
+           lower(j.item_name)     LIKE ${search} OR
+           lower(j.job_number)    LIKE ${search} OR
+           lower(COALESCE(j.customer_name, '')) LIKE ${search} OR
+           lower(COALESCE(j.address, ''))       LIKE ${search})
     ORDER BY
-      CASE WHEN material_ready = 1 THEN 0 ELSE 1 END,
-      promised_date NULLS LAST,
-      job_number
+      CASE WHEN j.material_ready = 1 THEN 0 ELSE 1 END,
+      j.promised_date NULLS LAST,
+      j.job_number
     LIMIT ${limit} OFFSET ${offset}
   `;
 
-  // Lightweight transform: parse trailer_needed JSON, attach Monday URL
+  // Lightweight transform: parse trailer_needed JSON, attach Monday URL, bundle assignment
   const result = rows.map((r) => ({
     ...r,
     trailerNeeded: safeParse(r.trailerNeeded, [] as string[]),
     mondayItemUrl: `https://installbrickpavers-team.monday.com/boards/2214820863/pulses/${r.id}`,
+    currentAssignment: r.assignedCrewKey ? {
+      crewKey: r.assignedCrewKey,
+      crewName: r.assignedCrewName ?? r.assignedCrewKey,
+      date: r.assignedDate,
+      status: r.assignedStatus,
+    } : null,
   }));
 
   // Aggregate status counts for the filter UI
@@ -172,6 +195,101 @@ export async function handleGetJob(
     photos,
     openFlags,
   }));
+}
+
+// POST /api/jobs/:jobNumber/assign  body: { crewKey, date? }
+// Manually pair a Monday job to a crew for a given date by upserting a
+// schedule_proposals row with status='approved'. The dispatcher can then
+// "Generate brief" to convert approved proposals into brief_jobs.
+export async function handleAssignJob(
+  req: IncomingMessage,
+  res: ServerResponse,
+  jobNumber: string,
+  body: { crewKey?: string; date?: string },
+): Promise<void> {
+  if (!body.crewKey) {
+    res.writeHead(400, { 'Content-Type': 'application/json' });
+    res.end(JSON.stringify({ error: 'crewKey is required' }));
+    return;
+  }
+  const date = body.date ?? new Date().toISOString().slice(0, 10);
+  const sql = getSql();
+
+  const [job] = await sql<{ jobNumber: string; itemName: string }[]>`
+    SELECT job_number AS "jobNumber", item_name AS "itemName"
+    FROM jobs WHERE job_number = ${jobNumber}
+  `;
+  if (!job) {
+    res.writeHead(404, { 'Content-Type': 'application/json' });
+    res.end(JSON.stringify({ error: 'Job not found' }));
+    return;
+  }
+  const [crew] = await sql<{ key: string; displayName: string }[]>`
+    SELECT key, display_name AS "displayName" FROM crews WHERE key = ${body.crewKey}
+  `;
+  if (!crew) {
+    res.writeHead(404, { 'Content-Type': 'application/json' });
+    res.end(JSON.stringify({ error: 'Crew not found' }));
+    return;
+  }
+
+  // Remove any existing proposal for the same date+job (so we don't pile up)
+  await sql`
+    DELETE FROM schedule_proposals
+    WHERE date = ${date} AND job_number = ${jobNumber}
+  `;
+
+  await sql`
+    INSERT INTO schedule_proposals
+      (id, date, generated_at, crew_key, job_number, job_name, reasoning, confidence, status)
+    VALUES (
+      gen_random_uuid()::text,
+      ${date},
+      ${new Date().toISOString()},
+      ${body.crewKey},
+      ${jobNumber},
+      ${job.itemName},
+      ${`Manually assigned by dispatcher.`},
+      'high',
+      'approved'
+    )
+  `;
+
+  res.writeHead(200, { 'Content-Type': 'application/json' });
+  res.end(JSON.stringify({
+    ok: true,
+    date,
+    jobNumber,
+    crewKey: body.crewKey,
+    crewName: crew.displayName,
+  }));
+}
+
+// GET /api/jobs/:jobNumber/assignment
+// Who is the job currently assigned to (latest approved proposal for the most recent date)
+export async function handleGetJobAssignment(
+  req: IncomingMessage,
+  res: ServerResponse,
+  jobNumber: string,
+): Promise<void> {
+  const sql = getSql();
+  const rows = await sql<Array<{
+    date: string; crewKey: string; status: string;
+    crewName: string | null;
+  }>>`
+    SELECT
+      sp.date,
+      sp.crew_key AS "crewKey",
+      sp.status,
+      c.display_name AS "crewName"
+    FROM schedule_proposals sp
+    LEFT JOIN crews c ON c.key = sp.crew_key
+    WHERE sp.job_number = ${jobNumber}
+    ORDER BY sp.date DESC, sp.generated_at DESC
+    LIMIT 5
+  `;
+  res.writeHead(200, { 'Content-Type': 'application/json' });
+  res.end(JSON.stringify({ assignments: rows }));
 }
 
 // GET /api/jobs/:jobNumber/material-status
