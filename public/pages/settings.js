@@ -12,6 +12,13 @@ IBP.registerRoute('settings', async (main) => {
   integrationsWrap.appendChild(IBP.spinner('Checking integrations…'));
   main.appendChild(integrationsWrap);
 
+  // ─── Telegram setup / reset tools ─────────────────────────
+  const toolsTitle = IBP.el('h2');
+  toolsTitle.style.cssText = 'font-size:14px;font-weight:500;margin:28px 0 10px;color:var(--ink-900);text-transform:uppercase;letter-spacing:0.06em;';
+  toolsTitle.textContent = 'Telegram setup';
+  main.appendChild(toolsTitle);
+  main.appendChild(buildToolsPanel());
+
   // Learned phrases section
   const phrasesTitle = IBP.el('h2');
   phrasesTitle.style.cssText = 'font-family:Fraunces,Georgia,serif;font-size:18px;font-weight:500;margin:32px 0 12px;color:var(--ink-900);';
@@ -68,6 +75,85 @@ IBP.registerRoute('settings', async (main) => {
     }));
   }
 });
+
+function buildToolsPanel() {
+  const wrap = IBP.el('div');
+  wrap.style.cssText = 'background:var(--paper);border:1px solid var(--border-soft);border-radius:8px;padding:14px 16px;display:flex;flex-direction:column;gap:14px;';
+
+  // ─── Webhook setup ─────────────────────
+  const webhookBlock = IBP.el('div');
+  webhookBlock.style.cssText = 'display:flex;align-items:flex-start;justify-content:space-between;gap:12px;';
+  const webhookInfo = IBP.el('div');
+  webhookInfo.style.cssText = 'flex:1;min-width:0;';
+  webhookInfo.innerHTML = `
+    <div style="font-size:13px;font-weight:500;color:var(--ink-900);margin-bottom:2px;">Re-register Telegram webhook</div>
+    <div style="font-size:12px;color:var(--ink-500);line-height:1.5;">Tells Telegram to send us <code style="font-family:JetBrains Mono,monospace;font-size:11px;background:var(--paper-alt);padding:0 4px;border-radius:3px;">my_chat_member</code> events so the bot auto-detects when added to a group. Safe to click anytime — idempotent.</div>
+  `;
+  const webhookBtn = IBP.el('button', 'btn btn-outline');
+  webhookBtn.innerHTML = '<i class="ti ti-webhook"></i><span>Re-register</span>';
+  webhookBtn.addEventListener('click', async () => {
+    webhookBtn.disabled = true;
+    webhookBtn.innerHTML = '<span class="spinner"></span><span>Working…</span>';
+    try {
+      const result = await IBP.fetchJson('/api/admin/setup-webhook', { method: 'POST' });
+      const allowed = (result.allowedUpdates || []).join(', ');
+      IBP.toast(`Webhook OK · allowed: ${allowed}`, 'success');
+    } catch (err) {
+      IBP.toast(err.message || 'Setup failed', 'error');
+    } finally {
+      webhookBtn.disabled = false;
+      webhookBtn.innerHTML = '<i class="ti ti-webhook"></i><span>Re-register</span>';
+    }
+  });
+  webhookBlock.appendChild(webhookInfo);
+  webhookBlock.appendChild(webhookBtn);
+  wrap.appendChild(webhookBlock);
+
+  // ─── Divider ───────────────────────────
+  const div = IBP.el('div');
+  div.style.cssText = 'border-top:1px solid var(--border-soft);margin:2px 0;';
+  wrap.appendChild(div);
+
+  // ─── Wipe test data ────────────────────
+  const wipeBlock = IBP.el('div');
+  wipeBlock.style.cssText = 'display:flex;align-items:flex-start;justify-content:space-between;gap:12px;';
+  const wipeInfo = IBP.el('div');
+  wipeInfo.style.cssText = 'flex:1;min-width:0;';
+  wipeInfo.innerHTML = `
+    <div style="font-size:13px;font-weight:500;color:var(--ink-900);margin-bottom:2px;">Reset test data</div>
+    <div style="font-size:12px;color:var(--ink-500);line-height:1.5;">Wipes <strong>photos, flags, brief_jobs, briefs, schedule_proposals</strong> and unlinks fake Telegram IDs. Keeps your Admin DM link, all crew profiles, skills, and Monday jobs.</div>
+  `;
+  const wipeBtn = IBP.el('button', 'btn btn-danger');
+  wipeBtn.innerHTML = '<i class="ti ti-trash"></i><span>Wipe</span>';
+  wipeBtn.addEventListener('click', async () => {
+    const ok = await IBP.confirm({
+      title: 'Wipe operational test data?',
+      message: 'photos · flags · brief_jobs · briefs · schedule_proposals will be cleared. Crew profiles and Monday jobs are kept. Cannot be undone.',
+      confirmLabel: 'Wipe',
+      cancelLabel: 'Keep',
+      danger: true,
+    });
+    if (!ok) return;
+    wipeBtn.disabled = true;
+    wipeBtn.innerHTML = '<span class="spinner"></span><span>Wiping…</span>';
+    try {
+      const result = await IBP.fetchJson('/api/admin/reset-test-data', { method: 'POST' });
+      const w = result.wiped || {};
+      const total = Object.values(w).reduce((n, x) => n + (typeof x === 'number' ? x : 0), 0);
+      IBP.toast(`Reset complete — ${IBP.roundNum(total)} rows wiped`, 'success');
+    } catch (err) {
+      IBP.toast(err.message || 'Reset failed', 'error');
+    } finally {
+      wipeBtn.disabled = false;
+      wipeBtn.innerHTML = '<i class="ti ti-trash"></i><span>Wipe</span>';
+    }
+  });
+  wipeBlock.appendChild(wipeInfo);
+  wipeBlock.appendChild(wipeBtn);
+  wrap.appendChild(wipeBlock);
+
+  return wrap;
+}
 
 function buildIntegrationCard(name, icon, status, action, actionLabel = 'Refresh') {
   const card = IBP.el('div', 'integration-card');

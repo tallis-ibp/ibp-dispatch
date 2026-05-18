@@ -2,15 +2,17 @@ import type { IncomingMessage, ServerResponse } from 'http';
 import { getSql } from '../../db/client.js';
 import { getBot } from '../../telegram/grammy.js';
 
+// Admin endpoints accept either:
+//   - DISABLE_AUTH=true (dev / personal project mode — already the user's setup)
+//   - Authorization: Bearer ${CRON_SECRET} (for scripted access)
 function checkAuth(req: IncomingMessage, res: ServerResponse): boolean {
+  if (process.env.DISABLE_AUTH === 'true') return true;
   const auth = req.headers.authorization ?? '';
   const secret = process.env.CRON_SECRET ?? '';
-  if (!secret || auth !== `Bearer ${secret}`) {
-    res.writeHead(401, { 'Content-Type': 'application/json' });
-    res.end(JSON.stringify({ error: 'Unauthorized' }));
-    return false;
-  }
-  return true;
+  if (secret && auth === `Bearer ${secret}`) return true;
+  res.writeHead(401, { 'Content-Type': 'application/json' });
+  res.end(JSON.stringify({ error: 'Unauthorized' }));
+  return false;
 }
 
 /**
