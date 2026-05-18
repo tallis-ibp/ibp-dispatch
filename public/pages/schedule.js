@@ -25,12 +25,20 @@ IBP.registerRoute('schedule', async (main) => {
     runBtn.disabled = true;
     runBtn.innerHTML = '<span class="spinner"></span><span>Running…</span>';
     try {
-      await IBP.fetchJson('/api/proposals', {
+      const result = await IBP.fetchJson('/api/proposals', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ date: today }),
       });
-      IBP.toast('Proposals generated', 'success');
+      const count = Array.isArray(result) ? result.length : 0;
+      if (count === 0) {
+        IBP.toast(
+          'Agent ran but generated 0 proposals — likely no Monday jobs with material_ready=1 today, or no crews with reliability set. Sync Monday from Settings + set reliability on crews.',
+          'error',
+        );
+      } else {
+        IBP.toast(`Agent generated ${count} proposal${count === 1 ? '' : 's'}`, 'success');
+      }
       IBP.render();
     } catch (err) {
       IBP.toast(err.message || 'Agent failed', 'error');
@@ -241,8 +249,10 @@ function buildProposalCard(p) {
 }
 
 function buildSheetEmbed() {
-  // Restore collapse state from localStorage so the user's preference sticks
-  const collapsed = localStorage.getItem('ibp.sheetEmbed.collapsed') === '1';
+  // Default COLLAPSED — keeps the AI proposals as the primary focus.
+  // User's preference (if any) sticks via localStorage.
+  const pref = localStorage.getItem('ibp.sheetEmbed.collapsed');
+  const collapsed = pref === null ? true : pref === '1';
   const card = IBP.el('div', `sheet-embed-card ${collapsed ? 'collapsed' : ''}`);
 
   const head = IBP.el('div', 'sheet-embed-head');

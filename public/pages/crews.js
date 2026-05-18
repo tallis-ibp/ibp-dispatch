@@ -104,7 +104,22 @@ function buildSection(dotClass, label, crews, opts = {}) {
 
   const grid = IBP.el('div', 'card-grid-3 section-grid');
   const sorted = [...crews].sort((a, b) => a.display_name.localeCompare(b.display_name));
-  for (const c of sorted) grid.appendChild(buildOpCard(c));
+  // Render each card defensively — a single broken crew payload must not blow
+  // up the whole section. Logs the failure to console for debugging.
+  for (const c of sorted) {
+    try {
+      grid.appendChild(buildOpCard(c));
+    } catch (err) {
+      console.error('[crews] failed to render card', c, err);
+      const fallback = IBP.el('div', 'crew-mgmt-card');
+      fallback.style.cssText = 'border-color:var(--danger-200);background:var(--danger-100);';
+      fallback.innerHTML = `
+        <div style="font-size:13px;font-weight:500;color:var(--danger-700);">${IBP.escHtml(c.display_name || c.key || 'Unknown crew')}</div>
+        <div style="font-size:11px;color:var(--danger-700);">Could not render — see browser console.</div>
+      `;
+      grid.appendChild(fallback);
+    }
+  }
   section.appendChild(grid);
   return section;
 }
@@ -130,9 +145,25 @@ function buildOpCard(crew) {
   identity.appendChild(nameWrap);
   head.appendChild(identity);
 
+  // Right side: language badge + connection status
+  const right = IBP.el('div');
+  right.style.cssText = 'display:flex;align-items:center;gap:6px;flex-shrink:0;';
+
+  const langBadge = IBP.el('span', 'badge neutral');
+  langBadge.textContent = (crew.language || 'en').toUpperCase();
+  langBadge.title = 'Bot reply language — click to change';
+  langBadge.style.cursor = 'pointer';
+  langBadge.addEventListener('click', (e) => {
+    e.stopPropagation();
+    openConfigDrawer(crew);
+  });
+  right.appendChild(langBadge);
+
   const status = IBP.el('div', `tg-status ${connected ? '' : 'disconnected'}`);
   status.innerHTML = `<span class="dot"></span><span>${connected ? 'Live' : 'Not set'}</span>`;
-  head.appendChild(status);
+  right.appendChild(status);
+
+  head.appendChild(right);
   card.appendChild(head);
 
   // ─── Operational mini-stat grid (only for connected crews) ─
