@@ -1,5 +1,58 @@
 import type { IncomingMessage, ServerResponse } from 'http';
 import { getSql } from '../../db/client.js';
+import { getBot } from '../../telegram/grammy.js';
+
+function checkAuth(req: IncomingMessage, res: ServerResponse): boolean {
+  const auth = req.headers.authorization ?? '';
+  const secret = process.env.CRON_SECRET ?? '';
+  if (!secret || auth !== `Bearer ${secret}`) {
+    res.writeHead(401, { 'Content-Type': 'application/json' });
+    res.end(JSON.stringify({ error: 'Unauthorized' }));
+    return false;
+  }
+  return true;
+}
+
+/**
+ * POST /api/admin/setup-webhook
+ * Auth: Bearer ${CRON_SECRET}
+ *
+ * Re-registers the Telegram webhook with the right allowed_updates so the
+ * bot also receives my_chat_member events (auto-registration when added to
+ * groups). Idempotent — safe to call multiple times.
+ */
+export async function handleSetupWebhook(
+  req: IncomingMessage,
+  res: ServerResponse,
+): Promise<void> {
+  if (!checkAuth(req, res)) return;
+  const publicUrl = process.env.PUBLIC_URL ?? '';
+  if (!publicUrl) {
+    res.writeHead(500, { 'Content-Type': 'application/json' });
+    res.end(JSON.stringify({ error: 'PUBLIC_URL not set' }));
+    return;
+  }
+  try {
+    const bot = getBot();
+    await bot.init();
+    await bot.api.setWebhook(`${publicUrl}/webhook/telegram`, {
+      secret_token: process.env.TELEGRAM_WEBHOOK_SECRET ?? '',
+      allowed_updates: ['message', 'edited_message', 'callback_query', 'my_chat_member'],
+    });
+    const info = await bot.api.getWebhookInfo();
+    res.writeHead(200, { 'Content-Type': 'application/json' });
+    res.end(JSON.stringify({
+      ok: true,
+      url: info.url,
+      pendingUpdates: info.pending_update_count,
+      allowedUpdates: info.allowed_updates ?? ['<default>'],
+    }));
+  } catch (err) {
+    const msg = err instanceof Error ? err.message : String(err);
+    res.writeHead(500, { 'Content-Type': 'application/json' });
+    res.end(JSON.stringify({ error: msg }));
+  }
+}
 
 /**
  * POST /api/admin/reset-test-data
@@ -24,13 +77,7 @@ export async function handleResetTestData(
   req: IncomingMessage,
   res: ServerResponse,
 ): Promise<void> {
-  const auth = req.headers.authorization ?? '';
-  const secret = process.env.CRON_SECRET ?? '';
-  if (!secret || auth !== `Bearer ${secret}`) {
-    res.writeHead(401, { 'Content-Type': 'application/json' });
-    res.end(JSON.stringify({ error: 'Unauthorized' }));
-    return;
-  }
+  if (!checkAuth(req, res)) return;
   const sql = getSql();
   const counts: Record<string, number> = {};
 

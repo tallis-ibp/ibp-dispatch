@@ -1,6 +1,7 @@
 import { Bot } from 'grammy';
 import { handleCallbackQuery, handleTextMessage } from './messageHandler.js';
 import { handlePhotoMessage } from './photoHandler.js';
+import { recordChatActivity, markChatLeft } from './chatRegistry.js';
 import { getSql } from '../db/client.js';
 
 let botInstance: Bot | null = null;
@@ -87,10 +88,46 @@ export function getBot(): Bot {
       await ctx.reply('Unknown command. Try: /test ping · /test brief · /test webhook');
     });
 
+    // Auto-register every chat the bot is added to, kicked from, or messaged in
+    botInstance.on('my_chat_member', async (ctx) => {
+      const update = ctx.myChatMember;
+      const chat = update.chat;
+      const newStatus = update.new_chat_member.status;
+      const chatTitle = 'title' in chat ? chat.title : null;
+      try {
+        if (newStatus === 'left' || newStatus === 'kicked') {
+          await markChatLeft(String(chat.id), newStatus);
+          return;
+        }
+        // Bot was added to a group or its membership upgraded
+        const isNew = await recordChatActivity(String(chat.id), chat.type, chatTitle ?? null);
+        if (isNew && (chat.type === 'group' || chat.type === 'supergroup')) {
+          // Minimal welcome message — operational, no technical IDs leak to crew leaders
+          await ctx.api.sendMessage(chat.id,
+            '✅ IBP Dispatch is active in this group. Job briefs from the office will arrive here.');
+        }
+      } catch (err) {
+        console.error('[my_chat_member] failed:', err);
+      }
+    });
+
+    // Wrap message handlers so we always record activity, even if the handler errors
+    const withActivity = (
+      fn: (ctx: import('grammy').Context) => Promise<void>,
+    ) => async (ctx: import('grammy').Context) => {
+      const chat = ctx.chat;
+      if (chat) {
+        const chatTitle = 'title' in chat ? chat.title : null;
+        recordChatActivity(String(chat.id), chat.type, chatTitle ?? null)
+          .catch((e) => console.warn('[recordChatActivity]', e));
+      }
+      await fn(ctx);
+    };
+
     // 1.4 — photo handler registered before generic message handler to avoid double-handling
-    botInstance.on('message:photo', handlePhotoMessage);
-    botInstance.on('callback_query', handleCallbackQuery);
-    botInstance.on('message', handleTextMessage);
+    botInstance.on('message:photo', withActivity(handlePhotoMessage));
+    botInstance.on('callback_query', withActivity(handleCallbackQuery));
+    botInstance.on('message', withActivity(handleTextMessage));
 
     botInstance.catch((err) => {
       console.error('[grammy] Unhandled error:', err);
@@ -104,10 +141,14 @@ export async function startBot(): Promise<void> {
   const publicUrl = process.env.PUBLIC_URL;
 
   if (publicUrl) {
+    // Telegram default does NOT send my_chat_member events. Must opt in
+    // explicitly via allowed_updates so the bot auto-registers groups it's
+    // added to.
     await bot.api.setWebhook(`${publicUrl}/webhook/telegram`, {
       secret_token: process.env.TELEGRAM_WEBHOOK_SECRET ?? '',
+      allowed_updates: ['message', 'edited_message', 'callback_query', 'my_chat_member'],
     });
-    console.log(`[telegram] Webhook set: ${publicUrl}/webhook/telegram`);
+    console.log(`[telegram] Webhook set: ${publicUrl}/webhook/telegram (with my_chat_member)`);
   } else {
     void bot.start({ onStart: () => console.log('[telegram] Long-polling started') });
     console.log('[telegram] Running in polling mode (no PUBLIC_URL set)');

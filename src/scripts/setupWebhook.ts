@@ -14,7 +14,7 @@ async function setup(): Promise<void> {
 
   await bot.api.setWebhook(webhookUrl, {
     secret_token: secret ?? '',
-    allowed_updates: ['message', 'callback_query'],
+    allowed_updates: ['message', 'edited_message', 'callback_query', 'my_chat_member'],
   });
 
   const info = await bot.api.getWebhookInfo();

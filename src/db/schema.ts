@@ -142,4 +142,16 @@ CREATE TABLE IF NOT EXISTS login_nonces (
   created_at TEXT NOT NULL,
   used INTEGER DEFAULT 0
 );
+
+CREATE TABLE IF NOT EXISTS telegram_chats (
+  chat_id          TEXT PRIMARY KEY,
+  type             TEXT NOT NULL,
+  title            TEXT,
+  joined_at        TEXT NOT NULL,
+  last_seen        TEXT,
+  status           TEXT NOT NULL DEFAULT 'active',
+  linked_crew_key  TEXT REFERENCES crews(key) ON DELETE SET NULL
+);
+CREATE INDEX IF NOT EXISTS idx_telegram_chats_linked_crew ON telegram_chats(linked_crew_key);
+CREATE INDEX IF NOT EXISTS idx_telegram_chats_status     ON telegram_chats(status);
 `;
