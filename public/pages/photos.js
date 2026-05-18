@@ -29,6 +29,16 @@ IBP.registerRoute('photos', async (main) => {
   filters.appendChild(statusSelect);
   main.appendChild(filters);
 
+  const stats = IBP.el('div', 'stat-strip');
+  stats.style.gridTemplateColumns = 'repeat(4, 1fr)';
+  stats.innerHTML = `
+    <div class="stat-card"><div class="stat-num" id="ph-total">—</div><div class="stat-label">Photos today</div></div>
+    <div class="stat-card"><div class="stat-num" id="ph-done" style="color:var(--success-700)">—</div><div class="stat-label">Job done</div></div>
+    <div class="stat-card"><div class="stat-num" id="ph-progress" style="color:var(--info-700)">—</div><div class="stat-label">In progress</div></div>
+    <div class="stat-card"><div class="stat-num" id="ph-unknown" style="color:var(--ink-400)">—</div><div class="stat-label">Unknown</div></div>
+  `;
+  main.appendChild(stats);
+
   const wrap = IBP.el('div');
   wrap.appendChild(IBP.spinner('Loading photos…'));
   main.appendChild(wrap);
@@ -42,6 +52,17 @@ IBP.registerRoute('photos', async (main) => {
     if (statusSelect.value) params.set('status',  statusSelect.value);
     try {
       const photos = await IBP.fetchJson(`/api/photos?${params}`);
+      // Update stats
+      const counts = { done: 0, 'in-progress': 0, unknown: 0 };
+      for (const p of photos) {
+        const k = p.completionStatus || 'unknown';
+        counts[k] = (counts[k] || 0) + 1;
+      }
+      document.getElementById('ph-total').textContent = IBP.roundNum(photos.length);
+      document.getElementById('ph-done').textContent  = IBP.roundNum(counts.done);
+      document.getElementById('ph-progress').textContent = IBP.roundNum(counts['in-progress']);
+      document.getElementById('ph-unknown').textContent  = IBP.roundNum(counts.unknown);
+
       wrap.innerHTML = '';
       if (!photos.length) {
         wrap.appendChild(IBP.emptyState({

@@ -233,7 +233,7 @@ function buildJobRow(job) {
   assignBtn.title = 'Assign this job to a crew for today';
   assignBtn.addEventListener('click', (e) => {
     e.stopPropagation();
-    openAssignDialog(job);
+    window.openAssignDialog(job);
   });
   actionsCol.appendChild(assignBtn);
 
@@ -251,8 +251,9 @@ function buildJobRow(job) {
 }
 
 // Assignment dialog: pick a crew, optionally pick the date, submit.
-// Creates an approved schedule_proposal which generate-briefs picks up.
-async function openAssignDialog(job) {
+// Creates an approved schedule_proposal + brief_job so the assignment is
+// instantly dispatchable from the Dispatch page.
+window.openAssignDialog = async function openAssignDialog(job) {
   let crews;
   try { crews = await IBP.fetchJson('/api/crews'); }
   catch (err) { IBP.toast(err.message, 'error'); return; }

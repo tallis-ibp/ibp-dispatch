@@ -43,7 +43,16 @@ async function loadCrewProfilesFromDb(): Promise<CrewProfile[]> {
 
 const client = new Anthropic();
 
-export function buildSchedulingPrompt(jobs: Job[], crews: CrewProfile[], date: string): string {
+export function buildSchedulingPrompt(
+  jobs: Job[],
+  crews: CrewProfile[],
+  date: string,
+  existingAssignments: Array<{ crewKey: string; jobNumber: string | null; jobName: string }> = [],
+): string {
+  const existingBlock = existingAssignments.length
+    ? `\n## Already assigned today (DO NOT propose these crews for additional jobs)\n${existingAssignments.map((e) => `- ${e.crewKey} → #${e.jobNumber ?? '?'} ${e.jobName}`).join('\n')}\n`
+    : '';
+
   return `You are a scheduling assistant for IBP Group, a paver and pool-deck construction company in Florida.
 
 Today's date: ${date}
@@ -52,8 +61,8 @@ Today's date: ${date}
 ${jobs.map((j) => `- #${j.jobNumber} | ${j.itemName} | Type: ${j.jobType ?? 'unknown'} | Address: ${j.address ?? 'TBD'} | Trailers: ${j.trailerNeeded.join(', ') || 'none'}`).join('\n')}
 
 ## Available crews
-${crews.map((c) => `- ${c.key} (${c.displayName}) | Reliability: ${c.reliability} | Skills: ${c.strengths.join(', ')} | Cautions: ${c.cautions.join(', ') || 'none'}`).join('\n')}
-
+${crews.map((c) => `- ${c.key} (${c.displayName}) | Reliability: ${c.reliability} | Telegram: ${c.telegramGroupId ? 'connected' : 'NOT connected'} | Skills: ${c.strengths.join(', ')} | Cautions: ${c.cautions.join(', ') || 'none'}`).join('\n')}
+${existingBlock}
 ## Scheduling rules (MUST follow)
 1. coping and tile jobs ONLY assign to Toby or Fausto
 2. Big slab / gooseneck jobs → prefer Marcelao or Waype
@@ -62,6 +71,8 @@ ${crews.map((c) => `- ${c.key} (${c.displayName}) | Reliability: ${c.reliability
 5. Jobs in gated communities → prefer high-reliability crews
 6. Flag jobs with no gate code as confidence: low
 7. Never assign two crews to the same job on the same day
+8. Never assign a crew that is "Already assigned today" above
+9. Crews with "Telegram: NOT connected" must be marked confidence: low
 
 ## Output format
 Return a JSON array with one object per crew assignment:
@@ -93,6 +104,13 @@ export async function generateProposals(date: string): Promise<ScheduleProposal[
     return [];
   }
 
+  // Pull what's already assigned for the date so the agent doesn't double-book
+  const existing = await sql<Array<{ crewKey: string; jobNumber: string | null; jobName: string }>>`
+    SELECT crew_key AS "crewKey", job_number AS "jobNumber", job_name AS "jobName"
+    FROM brief_jobs
+    WHERE brief_date = ${date}
+  `;
+
   const prompt = buildSchedulingPrompt(
     jobRows.map((j) => ({
       ...j,
@@ -101,7 +119,8 @@ export async function generateProposals(date: string): Promise<ScheduleProposal[
       materialReady: Boolean(j['material_ready']),
     })) as Job[],
     crews,
-    date
+    date,
+    existing,
   );
 
   const response = await client.messages.create({

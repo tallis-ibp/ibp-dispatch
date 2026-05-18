@@ -26,6 +26,15 @@ IBP.registerRoute('flags', async (main) => {
   filters.appendChild(statusSel);
   main.appendChild(filters);
 
+  const stats = IBP.el('div', 'stat-strip');
+  stats.style.gridTemplateColumns = 'repeat(3, 1fr)';
+  stats.innerHTML = `
+    <div class="stat-card"><div class="stat-num" id="fl-total">—</div><div class="stat-label">Flags today</div></div>
+    <div class="stat-card"><div class="stat-num" id="fl-open" style="color:var(--warning-700)">—</div><div class="stat-label">Open</div></div>
+    <div class="stat-card"><div class="stat-num" id="fl-resolved" style="color:var(--success-700)">—</div><div class="stat-label">Resolved</div></div>
+  `;
+  main.appendChild(stats);
+
   const wrap = IBP.el('div');
   wrap.appendChild(IBP.spinner('Loading flags…'));
   main.appendChild(wrap);
@@ -35,6 +44,12 @@ IBP.registerRoute('flags', async (main) => {
     wrap.appendChild(IBP.spinner('Loading flags…'));
     try {
       const flags = await IBP.fetchJson(`/api/flags?date=${dateInput.value}`);
+      const open = flags.filter((f) => !f.resolved).length;
+      const resolved = flags.filter((f) => f.resolved).length;
+      document.getElementById('fl-total').textContent = IBP.roundNum(flags.length);
+      document.getElementById('fl-open').textContent  = IBP.roundNum(open);
+      document.getElementById('fl-resolved').textContent = IBP.roundNum(resolved);
+
       const filtered = flags.filter((f) => {
         if (statusSel.value === 'open')     return !f.resolved;
         if (statusSel.value === 'resolved') return f.resolved;
@@ -50,14 +65,15 @@ IBP.registerRoute('flags', async (main) => {
         return;
       }
       for (const f of filtered) wrap.appendChild(buildFlagRow(f));
-      // Update sidebar badge with open count
-      const openCount = flags.filter((f) => !f.resolved).length;
-      IBP.updateFlagBadge(openCount);
+      IBP.updateFlagBadge(open);
     } catch (err) {
       wrap.innerHTML = '';
       wrap.appendChild(IBP.emptyState({
         icon: 'alert-triangle', title: 'Failed to load flags', sub: err.message,
       }));
+      document.getElementById('fl-total').textContent = '0';
+      document.getElementById('fl-open').textContent = '0';
+      document.getElementById('fl-resolved').textContent = '0';
     }
   };
 

@@ -395,8 +395,31 @@ async function openCrewDrawer(crewKey) {
 
 async function openJobDrawer(jobNumber) {
   try {
-    const job = await IBP.fetchJson(`/api/jobs/${jobNumber}`);
+    const [job, assignment] = await Promise.all([
+      IBP.fetchJson(`/api/jobs/${jobNumber}`),
+      fetch(`/api/jobs/${jobNumber}/assignment`).then((r) => r.ok ? r.json() : { assignments: [] }),
+    ]);
+    const latestAssign = assignment.assignments?.[0];
+
     const body = IBP.el('div');
+
+    // Top: current assignment + reassign quick action
+    if (latestAssign) {
+      const assignBlock = IBP.el('div');
+      assignBlock.style.cssText = 'background:var(--info-100);border:1px solid var(--info-100);border-left:3px solid var(--info-700);border-radius:6px;padding:10px 12px;margin-bottom:12px;';
+      assignBlock.innerHTML = `
+        <div style="font-size:10px;font-weight:500;text-transform:uppercase;letter-spacing:0.06em;color:var(--info-700);margin-bottom:4px;">Currently assigned to</div>
+        <div style="font-size:14px;font-weight:500;color:var(--ink-900);">${IBP.escHtml(latestAssign.crewName ?? latestAssign.crewKey)}</div>
+        <div style="font-size:11px;color:var(--ink-600);margin-top:2px;">for <span style="font-family:JetBrains Mono,Menlo,monospace;">${IBP.escHtml(latestAssign.date)}</span> · status: <strong>${IBP.escHtml(latestAssign.status)}</strong></div>
+      `;
+      body.appendChild(assignBlock);
+    } else {
+      const noAssign = IBP.el('div');
+      noAssign.style.cssText = 'background:var(--paper-alt);border:1px solid var(--border-soft);border-radius:6px;padding:10px 12px;margin-bottom:12px;font-size:12px;color:var(--ink-500);';
+      noAssign.textContent = 'Not assigned to any crew yet.';
+      body.appendChild(noAssign);
+    }
+
     body.appendChild(IBP.drawerRow('Status', job.status || '—'));
     body.appendChild(IBP.drawerRow('Address', job.address || 'TBD'));
     body.appendChild(IBP.drawerRow('City', job.city || '—'));
@@ -419,6 +442,21 @@ async function openJobDrawer(jobNumber) {
     }
 
     const footer = IBP.el('div');
+    const reassignBtn = IBP.el('button', 'btn btn-primary btn-block');
+    reassignBtn.innerHTML = latestAssign
+      ? '<i class="ti ti-refresh"></i><span>Re-assign to another crew</span>'
+      : '<i class="ti ti-user-plus"></i><span>Assign to a crew</span>';
+    reassignBtn.addEventListener('click', () => {
+      IBP.closeDrawer();
+      // Lazy-call the Jobs page's assignment dialog if present, else navigate
+      if (typeof window.openAssignDialog === 'function') {
+        window.openAssignDialog(job);
+      } else {
+        IBP.navigate('jobs');
+      }
+    });
+    footer.appendChild(reassignBtn);
+
     const mondayBtn = IBP.el('a', 'btn btn-outline btn-block');
     mondayBtn.innerHTML = '<i class="ti ti-external-link"></i><span>Open in Monday.com</span>';
     mondayBtn.href = job.mondayItemUrl;

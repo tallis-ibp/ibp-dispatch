@@ -1,6 +1,7 @@
 import type { IncomingMessage, ServerResponse } from 'http';
 import { getSql } from '../../db/client.js';
 import { addUpdate } from '../../monday/addUpdate.js';
+import { randomUUID } from 'crypto';
 
 function safeParse<T>(json: unknown, fallback: T): T {
   if (json == null) return fallback;
@@ -233,25 +234,69 @@ export async function handleAssignJob(
     return;
   }
 
-  // Remove any existing proposal for the same date+job (so we don't pile up)
+  // Pull the full job row so we can populate the brief_job with address/trailer etc.
+  const [fullJob] = await sql<Array<{
+    id: string; itemName: string; address: string | null; city: string | null;
+    trailerNeeded: string | null;
+  }>>`
+    SELECT id, item_name AS "itemName", address, city, trailer_needed AS "trailerNeeded"
+    FROM jobs WHERE job_number = ${jobNumber}
+  `;
+  const trailerArr: string[] = fullJob?.trailerNeeded ? safeParse(fullJob.trailerNeeded, [] as string[]) : [];
+
+  const now = new Date().toISOString();
+
+  // Make sure a 'briefs' row exists for the date
+  await sql`
+    INSERT INTO briefs (date, generated_at, approved, approved_at, approved_by)
+    VALUES (${date}, ${now}, 0, NULL, NULL)
+    ON CONFLICT (date) DO NOTHING
+  `;
+
+  // Replace any existing proposal for the same date+job
   await sql`
     DELETE FROM schedule_proposals
     WHERE date = ${date} AND job_number = ${jobNumber}
   `;
-
   await sql`
     INSERT INTO schedule_proposals
       (id, date, generated_at, crew_key, job_number, job_name, reasoning, confidence, status)
     VALUES (
       gen_random_uuid()::text,
-      ${date},
-      ${new Date().toISOString()},
-      ${body.crewKey},
-      ${jobNumber},
-      ${job.itemName},
-      ${`Manually assigned by dispatcher.`},
-      'high',
-      'approved'
+      ${date}, ${now}, ${body.crewKey}, ${jobNumber},
+      ${job.itemName}, ${'Manually assigned by dispatcher.'}, 'high', 'approved'
+    )
+  `;
+
+  // Replace any existing brief_job for the same date+job so a re-assign is clean
+  await sql`
+    DELETE FROM brief_jobs
+    WHERE brief_date = ${date} AND job_number = ${jobNumber}
+  `;
+  const briefDispatchText = [
+    `*${job.itemName}*`,
+    ``,
+    `*ADDRESS:* ${fullJob?.address ?? 'TBD'}`,
+    fullJob?.city ? `*CITY:* ${fullJob.city}` : null,
+    trailerArr.length ? `*TRAILER:* ${trailerArr.join(', ')}` : null,
+    ``,
+    `*TASK:* ${job.itemName}`,
+    ``,
+    `*NEXT:* Warehouse`,
+  ].filter((l) => l !== null).join('\n');
+
+  await sql`
+    INSERT INTO brief_jobs (
+      id, brief_date, crew_key, job_number, job_name, address, gate_code,
+      supervisor, trailer_type, tasks, materials, next_stop, risk_flags,
+      dispatch_text, check_in_status, last_check_in, approved, sent_at, annotations
+    ) VALUES (
+      ${randomUUID()}, ${date}, ${body.crewKey}, ${jobNumber}, ${job.itemName},
+      ${fullJob?.address ?? null}, ${null}, ${null},
+      ${trailerArr.join(', ') || null},
+      ${JSON.stringify([job.itemName])}, ${'[]'},
+      ${'Warehouse'}, ${'[]'}, ${briefDispatchText},
+      ${null}, ${null}, ${1}, ${null}, ${null}
     )
   `;
 

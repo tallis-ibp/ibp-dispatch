@@ -80,6 +80,53 @@ function buildToolsPanel() {
   const wrap = IBP.el('div');
   wrap.style.cssText = 'background:var(--paper);border:1px solid var(--border-soft);border-radius:8px;padding:14px 16px;display:flex;flex-direction:column;gap:14px;';
 
+  // ─── Cleanup unused crews ──────────────────
+  const cleanupBlock = IBP.el('div');
+  cleanupBlock.style.cssText = 'display:flex;align-items:flex-start;justify-content:space-between;gap:12px;';
+  const cleanupInfo = IBP.el('div');
+  cleanupInfo.style.cssText = 'flex:1;min-width:0;';
+  cleanupInfo.innerHTML = `
+    <div style="font-size:13px;font-weight:500;color:var(--ink-900);margin-bottom:2px;">Delete crews not yet configured for AI</div>
+    <div style="font-size:12px;color:var(--ink-500);line-height:1.5;">Removes every crew that has <strong>no reliability set and no Telegram link</strong>. Use this to clean up the default seed list and only keep the crews you actually dispatch to.</div>
+  `;
+  const cleanupBtn = IBP.el('button', 'btn btn-danger');
+  cleanupBtn.innerHTML = '<i class="ti ti-broom"></i><span>Cleanup</span>';
+  cleanupBtn.addEventListener('click', async () => {
+    let crews;
+    try { crews = await IBP.fetchJson('/api/crews'); }
+    catch (err) { IBP.toast(err.message, 'error'); return; }
+    const candidates = crews.filter((c) => !c.reliability && !c.telegram_group_id);
+    if (!candidates.length) {
+      IBP.toast('No crews match the cleanup criteria', 'success');
+      return;
+    }
+    const ok = await IBP.confirm({
+      title: `Delete ${candidates.length} crew${candidates.length === 1 ? '' : 's'}?`,
+      message: candidates.map((c) => c.display_name).slice(0, 6).join(', ') + (candidates.length > 6 ? `, and ${candidates.length - 6} more…` : ''),
+      confirmLabel: 'Delete all',
+      cancelLabel: 'Keep',
+      danger: true,
+    });
+    if (!ok) return;
+    cleanupBtn.disabled = true;
+    cleanupBtn.innerHTML = '<span class="spinner"></span><span>Deleting…</span>';
+    let n = 0;
+    for (const c of candidates) {
+      try { await IBP.fetchJson(`/api/crews/${c.key}`, { method: 'DELETE' }); n++; }
+      catch { /* keep going */ }
+    }
+    IBP.toast(`Deleted ${IBP.roundNum(n)} crew${n === 1 ? '' : 's'}`, 'success');
+    cleanupBtn.disabled = false;
+    cleanupBtn.innerHTML = '<i class="ti ti-broom"></i><span>Cleanup</span>';
+  });
+  cleanupBlock.appendChild(cleanupInfo);
+  cleanupBlock.appendChild(cleanupBtn);
+  wrap.appendChild(cleanupBlock);
+
+  const div0 = IBP.el('div');
+  div0.style.cssText = 'border-top:1px solid var(--border-soft);margin:2px 0;';
+  wrap.appendChild(div0);
+
   // ─── Webhook setup ─────────────────────
   const webhookBlock = IBP.el('div');
   webhookBlock.style.cssText = 'display:flex;align-items:flex-start;justify-content:space-between;gap:12px;';

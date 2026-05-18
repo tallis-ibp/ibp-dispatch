@@ -115,6 +115,41 @@ IBP.registerRoute('schedule', async (main) => {
   `;
   wrap.appendChild(stats);
 
+  // Convert-to-brief CTA: turns approved proposals for TODAY into brief_jobs ready to dispatch
+  if (approved > 0) {
+    const todayApproved = allProposals.filter((p) => p.status === 'approved' && p.date === today).length;
+    if (todayApproved > 0) {
+      const banner = IBP.el('div');
+      banner.style.cssText = 'background:var(--paper);border:1px solid var(--success-100);border-left:3px solid var(--success-700);border-radius:var(--radius-md);padding:12px 16px;margin-bottom:12px;display:flex;align-items:center;justify-content:space-between;gap:12px;';
+      banner.innerHTML = `
+        <div style="font-size:13px;color:var(--ink-700);">
+          <strong>${IBP.roundNum(todayApproved)}</strong> approved proposal${todayApproved === 1 ? '' : 's'} for today are ready to convert into a dispatchable brief.
+        </div>
+      `;
+      const convertBtn = IBP.el('button', 'btn btn-primary btn-sm');
+      convertBtn.innerHTML = '<i class="ti ti-clipboard-check"></i><span>Generate today\'s brief</span>';
+      convertBtn.addEventListener('click', async () => {
+        convertBtn.disabled = true;
+        convertBtn.innerHTML = '<span class="spinner"></span><span>Generating…</span>';
+        try {
+          await IBP.fetchJson('/api/generate', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ date: today }),
+          });
+          IBP.toast('Brief generated — go to Dispatch to send', 'success');
+          IBP.navigate('dispatch');
+        } catch (err) {
+          IBP.toast(err.message || 'Generate failed', 'error');
+          convertBtn.disabled = false;
+          convertBtn.innerHTML = '<i class="ti ti-clipboard-check"></i><span>Generate today\'s brief</span>';
+        }
+      });
+      banner.appendChild(convertBtn);
+      wrap.appendChild(banner);
+    }
+  }
+
   // Group by date
   const byDate = new Map();
   for (const p of allProposals) {
